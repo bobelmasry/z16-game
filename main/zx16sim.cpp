@@ -276,9 +276,9 @@ string Z16Simulator::decodeInstruction(Word instruction) {
                     ss << "sltu x" << rd << ", x" << rs2; break;
                 case 3:  // Shifts
                     switch(funct4) {
-                        case 2: ss << "sll x" << rd << ", x" << rs2; break;
-                        case 4: ss << "srl x" << rd << ", x" << rs2; break;
-                        case 8: ss << "sra x" << rd << ", x" << rs2; break;
+                        case 4: ss << "sll x" << rd << ", x" << rs2; break;
+                        case 5: ss << "srl x" << rd << ", x" << rs2; break;
+                        case 6: ss << "sra x" << rd << ", x" << rs2; break;
                         default: ss << "UNKNOWN shift"; break;
                     }
                     break;
@@ -423,9 +423,9 @@ void Z16Simulator::executeInstruction(Word instruction, bool debugMode) {
                 case 2: registers[rd] = ((uint16_t)registers[rd] < (uint16_t)registers[rs2]) ? 1 : 0; break; // SLTU
                 case 3:  // Shifts
                     switch(funct4) {
-                        case 2: registers[rd] = registers[rd] << registers[rs2]; break; // SLL
-                        case 4: registers[rd] = registers[rd] >> registers[rs2]; break; // SRL
-                        case 8: registers[rd] = (int16_t)registers[rd] >> registers[rs2]; break; // SRA
+                        case 4: registers[rd] = registers[rd] << registers[rs2]; break; // SLL
+                        case 5: registers[rd] = registers[rd] >> registers[rs2]; break; // SRL
+                        case 6: registers[rd] = (int16_t)registers[rd] >> registers[rs2]; break; // SRA
                         default: cout << "Unknown shift instruction" << endl; break;
                     }
                     break;
