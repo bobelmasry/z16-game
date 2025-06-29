@@ -5,6 +5,8 @@ export function decodeInstruction(instruction: number): string {
     const rs2 = (instruction >> 9) & 0x0007;              // Bits 9–11
     const funct4 = (instruction >> 12) & 0x000F;          // Bits 12–15
     let imm = (instruction >> 9) & 0x7F;                  // Bits 9–15
+    const imm7 = (imm >> 4) & 0b111;
+    const shamt = imm & 0b1111; // Bits 0–3 of immediate
 
     // Sign-extend 7-bit immediate to 32-bit signed integer
     if (imm & 0x40) {
@@ -48,7 +50,14 @@ export function decodeInstruction(instruction: number): string {
                 case 0: result = `addi x${rd}, ${imm}`; break;
                 case 1: result = `slti x${rd}, ${imm}`; break;
                 case 2: result = `sltui x${rd}, ${imm}`; break;
-                case 3: result = `slli x${rd}, ${imm}`; break;
+                case 3: 
+                    switch (imm7) {
+                        case 1: result = `slli x${rd}, ${shamt}`; break;
+                        case 2: result = `srli x${rd}, ${shamt}`; break;
+                        case 4: result = `srai x${rd}, ${shamt}`; break;
+                        default: result = "UNKNOWN shift"; break;
+                    }
+                    break;
                 case 4: result = `ori x${rd}, ${imm}`; break;
                 case 5: result = `andi x${rd}, ${imm}`; break;
                 case 6: result = `xori x${rd}, ${imm}`; break;

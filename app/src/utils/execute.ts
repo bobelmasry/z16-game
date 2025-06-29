@@ -79,12 +79,12 @@ export function executeInstruction(
         case 1: newRegisters[rd] = (newRegisters[rd] << 16 >> 16) < imm ? 1 : 0; break;
         case 2: newRegisters[rd] = newRegisters[rd] < imm ? 1 : 0; break;
         case 3:
-          funct4 = (instruction >> 12) & 0xf;
-          shamt = (instruction >> 10) & 0x7;
-          switch (funct4) {
-            case 2: newRegisters[rd] <<= shamt; break;
-            case 4: newRegisters[rd] >>>= shamt; break;
-            case 8: newRegisters[rd] >>= shamt; break;
+          shamt = imm & 0b1111; // Bits 0–3 of immediate
+          const imm7 = (imm >> 4) & 0b111;
+          switch (imm7) {
+            case 1: newRegisters[rd] <<= shamt; break;
+            case 2: newRegisters[rd] >>>= shamt; break;
+            case 4: newRegisters[rd] >>= shamt; break;
             default: logs.push("Unknown shift instruction"); break;
           }
           break;
