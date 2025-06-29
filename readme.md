@@ -69,18 +69,3 @@ The project includes comprehensive test cases in the `tests/` directory:
 - **ex-5.s**: Logical operations
 - **ex-6.s**: System calls through Fibonacci 
 
-
-## 🔧 Development
-
-### Adding New Instructions
-
-1. **Update the assembler** (`assembler/zx16asm.py`)
-2. **Update the simulator** (`main/zx16sim.cpp`)
-3. **Update the web decoder** (`app/src/utils/decoder.ts`)
-4. **Update the web executor** (`app/src/utils/execute.ts`)
-5. **Add test cases** in `tests/`
-
-
-
-
-
