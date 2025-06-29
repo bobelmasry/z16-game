@@ -26,8 +26,8 @@ Fib:
 
     jal x1, Fib         # Fib(x-1)
     lw t0, 4(x2)
-    add x6, t0
+    add x6, x0
     lw x1, 0(x2)
-    addi x2, 12
+    addi x2, 6
 
     jr x1       # return
