@@ -1,3 +1,7 @@
+ /* This function takes a binary string like: 1001010001110000 and executes
+  the corresponding instruction by changing the values in the registers, 
+  adding console messages, changing values in the memory, and changing the program counter.*/
+
 export function executeInstruction(
   instruction: number,
   registers: number[],

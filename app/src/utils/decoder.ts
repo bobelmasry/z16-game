@@ -1,3 +1,7 @@
+ /* This function takes a binary string like: 1001010001110000 and converts it
+  to a human-readable string like xor x1, x2 in order to make sure that we're
+  extracting the fields correctly.*/
+
 export function decodeInstruction(instruction: number): string {
     const opcode = instruction & 0x0007;                  // Bits 0–2
     const funct3 = (instruction >> 3) & 0x0007;           // Bits 3–5
