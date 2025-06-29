@@ -1,6 +1,6 @@
- /* This function takes a binary string like: 1001010001110000 and converts it
-  to a human-readable string like xor x1, x2 in order to make sure that we're
-  extracting the fields correctly.*/
+/* This function takes a binary string like: 1001010001110000 and converts it
+ to a human-readable string like xor x1, x2 in order to make sure that we're
+ extracting the fields correctly.*/
 
 export function decodeInstruction(instruction: number): string {
     const opcode = instruction & 0x0007;                  // Bits 0–2
@@ -54,7 +54,7 @@ export function decodeInstruction(instruction: number): string {
                 case 0: result = `addi x${rd}, ${imm}`; break;
                 case 1: result = `slti x${rd}, ${imm}`; break;
                 case 2: result = `sltui x${rd}, ${imm}`; break;
-                case 3: 
+                case 3:
                     switch (imm7) {
                         case 1: result = `slli x${rd}, ${shamt}`; break;
                         case 2: result = `srli x${rd}, ${shamt}`; break;
@@ -123,13 +123,9 @@ export function decodeInstruction(instruction: number): string {
             break;
 
         case 7:
-            switch (rd) {
-                case 1: result = "ecall 1"; break;
-                case 3: result = "ecall 3"; break;
-                case 5: result = "ecall 5"; break;
-                default: result = "UNKNOWN ecall"; break;
-            }
-            break;
+            result = "ecall ";
+            result += `(rd=${rd})`;
+
 
         default:
             result = "UNKNOWN instruction"; break;
