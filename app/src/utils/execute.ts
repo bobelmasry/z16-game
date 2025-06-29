@@ -57,9 +57,9 @@ export function executeInstruction(
         case 2: newRegisters[rd] = newRegisters[rd] < newRegisters[rs2] ? 1 : 0; break;
         case 3:
           switch (funct4) {
-            case 2: newRegisters[rd] <<= newRegisters[rs2]; break;
-            case 4: newRegisters[rd] >>>= newRegisters[rs2]; break;
-            case 8: newRegisters[rd] >>= newRegisters[rs2]; break;
+            case 4: newRegisters[rd] <<= newRegisters[rs2]; break;
+            case 5: newRegisters[rd] >>>= newRegisters[rs2]; break;
+            case 6: newRegisters[rd] >>= newRegisters[rs2]; break;
             default: logs.push("Unknown shift instruction"); break;
           }
           break;

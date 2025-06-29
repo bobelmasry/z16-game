@@ -29,9 +29,9 @@ export function decodeInstruction(instruction: number): string {
                 case 2: result = `sltu x${rd}, x${rs2}`; break;
                 case 3:
                     switch (funct4) {
-                        case 2: result = `sll x${rd}, x${rs2}`; break;
-                        case 4: result = `srl x${rd}, x${rs2}`; break;
-                        case 8: result = `sra x${rd}, x${rs2}`; break;
+                        case 4: result = `sll x${rd}, x${rs2}`; break;
+                        case 5: result = `srl x${rd}, x${rs2}`; break;
+                        case 6: result = `sra x${rd}, x${rs2}`; break;
                         default: result = "UNKNOWN shift"; break;
                     }
                     break;
