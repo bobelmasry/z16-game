@@ -20,5 +20,5 @@ main:
     srai x6, 2  # test 2 types of shifting right
 
     # exit program
-    ecall 0x00A 
+    ecall 10
 

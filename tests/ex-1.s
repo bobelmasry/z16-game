@@ -5,7 +5,7 @@
 .text
 .org 0x000
     j  main
-.org 0x0030
+.org 0x0020
 main:
     # R-Type instructions
     add x1, x2          # Basic arithmetic
@@ -75,8 +75,6 @@ function:
     lui x1, 0x100       # Load upper immediate (256)
     auipc x2, 0x1FF     # Add upper immediate to PC (511 - max 9-bit)
     
-    # System call
-    ecall 0x008         # System call
     ret                 # Return from function
     
 final_section:

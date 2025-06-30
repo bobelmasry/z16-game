@@ -47,7 +47,7 @@ export default function Home() {
   };
 
   const execute = () => {
-    const inst = instructions[PC];
+    const inst = instructions[PC / 2];
     // Check if the instruction is ecall
     if (inst.opcode === Opcode.ecall) {
       const service = inst.service;
@@ -57,25 +57,27 @@ export default function Home() {
           break;
         case 3:
           // Print string to console from address of a0 (x6) register
-          const startAddress = registers[6]; // x6 is a0
-          console.log(startAddress);
-          console.log(memory[startAddress]);
-          console.log(memory);
+          const startAddress = registers[6] / 2; // x6 is a0
+          let done = false;
           let output = "";
           for (let i = startAddress; i < memory.length; i++) {
             const memoryWord = memory[i];
             for (let j = 0; j < 16; j += 8) {
               const charCode = (memoryWord >> j) & 0xff; // Extract each byte
-              if (charCode === 0) break; // Stop at null terminator
+              if (charCode === 0) {
+                done = true; // Stop if we hit a null terminator
+                break;
+              } // Stop at null terminator
               output += String.fromCharCode(charCode);
             }
+            if (done) break; // Stop if we hit a null terminator
           }
 
-          console.log("Console Output:", output);
+          setConsoleMessages((prev) => [...prev, `Output: ${output}`]);
 
           break;
         case 9: {
-          const startAddress = registers[6]; // x6 is a0
+          const startAddress = Math.floor(registers[6]) / 2; // x6 is a0
           const length = registers[7]; // x7 is a1
 
           const output: string[] = [];
@@ -111,7 +113,7 @@ export default function Home() {
         default:
           break;
       }
-      setPC(PC + 1);
+      setPC(PC + 2);
       return;
     }
 
@@ -133,8 +135,8 @@ export default function Home() {
     }
     setState("exited");
     setPC(0);
-    setRegisters(Array(8).fill(0));
-    setConsoleMessages((m) => [...m, "Program exited."]);
+    // setRegisters(Array(8).fill(0));
+    // setConsoleMessages((m) => [...m, "Program exited."]);
   };
 
   const step = () => {
@@ -282,7 +284,7 @@ export default function Home() {
           <Registers registers={registers} />
           <div className="mb-4">
             <h2 className="text-lg font-semibold mb-2">PC</h2>
-            <div className="bg-neutral-700 p-2 rounded">{PC * 2}</div>
+            <div className="bg-neutral-700 p-2 rounded">{PC}</div>
           </div>
           <div className="mb-4">
             <h2 className="text-lg font-semibold mb-2">Console Output</h2>

@@ -289,9 +289,9 @@ export function decodeSTypeInstruction(i: STypeInstruction): string {
   const offset = signExtend(i.imm, 4);
   switch (i.funct3) {
     case 0:
-      return `SB    x${rs2}, ${offset}(x${rs1})`;
+      return `SB    x${rs1}, ${offset}(x${rs2})`;
     case 1:
-      return `SW    x${rs2}, ${offset}(x${rs1})`;
+      return `SW    x${rs1}, ${offset}(x${rs2})`;
   }
   throw new Error(`Unknown S-type (f3=${i.funct3})`);
 }

@@ -59,7 +59,7 @@ export function executeInstruction(
               break;
             case 8: {
               // JALR
-              const nextPC = pc + 1;
+              const nextPC = pc + 2;
               pc = registers[rd];
               registers[rd] = nextPC;
               incrementPC = false;
@@ -185,7 +185,7 @@ export function executeInstruction(
       }
 
       if (take) {
-        pc += imm;
+        pc += imm * 2;
         incrementPC = false;
         logs.push(`Branch taken. New PC: 0x${pc.toString(16)}`);
       }
@@ -235,10 +235,10 @@ export function executeInstruction(
       const { rd, imm: rawImm, flag } = inst;
       let imm = signExtend(rawImm, 9);
       if (flag === 0) {
-        pc += imm;
+        pc += imm * 2;
       } else {
-        const nextPC = pc + 1;
-        pc += imm;
+        const nextPC = pc + 2;
+        pc += imm * 2;
         registers[rd] = nextPC;
       }
       incrementPC = false;
@@ -263,7 +263,7 @@ export function executeInstruction(
       break;
   }
   if (incrementPC) {
-    pc += 1;
+    pc += 2;
   }
   return {
     registers,

@@ -127,7 +127,7 @@ export function CodeViewer({
     const mon = monacoRef.current;
     if (!editor || !mon) return;
 
-    const lineNum = PC + 1;
+    const lineNum = Math.ceil((PC + 1) / 2);
     decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
       {
         range: new mon.Range(lineNum, 1, lineNum, 1),
