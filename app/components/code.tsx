@@ -5,59 +5,119 @@ import { useEffect, useRef } from "react";
 const Z16_LANG = "z16";
 const Z16_THEME = "z16Theme";
 
+// 0) your arrays of mnemonics + registers
+const Z16_INSTRUCTIONS = [
+  "add",
+  "sub",
+  "slt",
+  "sltu",
+  "sll",
+  "srl",
+  "sra",
+  "or",
+  "and",
+  "xor",
+  "mv",
+  "jr",
+  "jalr",
+  "addi",
+  "slti",
+  "sltui",
+  "slli",
+  "srli",
+  "srai",
+  "ori",
+  "andi",
+  "xori",
+  "li",
+  "beq",
+  "bne",
+  "bz",
+  "bnz",
+  "blt",
+  "bge",
+  "bltu",
+  "bgeu",
+  "sb",
+  "sw",
+  "lb",
+  "lw",
+  "lbu",
+  "j",
+  "jal",
+  "lui",
+  "auipc",
+  "ecall",
+];
+// adjust length if you have more registers
+const Z16_REGISTERS = Array.from({ length: 16 }, (_, i) => `x${i}`);
+
 const beforeMount: BeforeMount = (monaco) => {
-  // 1) register language & tokens
   monaco.languages.register({ id: Z16_LANG });
   monaco.languages.setMonarchTokensProvider(Z16_LANG, {
     tokenizer: {
       root: [
+        // comments
         [/(;|#).*$/, "comment"],
-        [
-          /\b(ADD|SUB|JALR|JR|ADDI|SLTI|XORI|ANDI|ORI|LI|BEQ|BNE|BZ|BNZ|BLT|BGE|BLTU|BGEU|LUI|AUIPC|J|JAL|ECALL|SW|LB|LW|LBU)\b/,
-          "keyword",
-        ],
-        [/\bx0\b/, "reg0"],
-        [/\bx1\b/, "reg1"],
-        [/\bx2\b/, "reg2"],
-        [/\bx3\b/, "reg3"],
-        [/\bx4\b/, "reg4"],
-        [/\bx5\b/, "reg5"],
-        [/\bx6\b/, "reg6"],
-        [/\bx7\b/, "reg7"],
-        [/\b0x[0-7]\b/, "variable"],
-        [/\b(0x[0-9A-Fa-f]+|0b[01]+|\d+)\b/, "number"],
+
+        // instructions (case-insensitive)
+        [new RegExp(`\\b(${Z16_INSTRUCTIONS.join("|")})\\b`, "i"), "keyword"],
+
+        // registers x0…x15
+        [new RegExp(`\\b(${Z16_REGISTERS.join("|")})\\b`, "i"), "register"],
+
+        // numbers
+        [/\b0x[0-9A-Fa-f]+\b/, "number.hex"],
+        [/\b0b[01]+\b/, "number.bin"],
+        [/\b\d+\b/, "number"],
+
+        // delimiters
+        [/[,\[\]\(\)]/, "delimiter"],
+
+        // identifiers (labels, symbols, etc.)
+        [/[A-Za-z_]\w*/, "identifier"],
+
+        // whitespace
+        [/\s+/, "white"],
       ],
     },
   });
 
-  // 2) define theme
   monaco.editor.defineTheme(Z16_THEME, {
     base: "vs-dark",
     inherit: true,
     rules: [
-      { token: "keyword", foreground: "7c9fb8", fontStyle: "bold" }, // muted blue-grey
-      { token: "variable", foreground: "a8c4d6", fontStyle: "bold" }, // soft powder blue
-      { token: "number", foreground: "b8d4a8" }, // sage green
-      { token: "comment", foreground: "6a9955", fontStyle: "italic" }, // green
-      { token: "reg0", foreground: "d49999" }, // dusty rose
-      { token: "reg1", foreground: "99d4a8" }, // mint green
-      { token: "reg2", foreground: "9db4d4" }, // periwinkle blue
-      { token: "reg3", foreground: "d4c899" }, // champagne
-      { token: "reg4", foreground: "c99dd4" }, // lavender
-      { token: "reg5", foreground: "99d1d4" }, // seafoam
-      { token: "reg6", foreground: "d4b199" }, // warm beige
-      { token: "reg7", foreground: "b9d499" }, // pale lime
+      { token: "comment", foreground: "6a9955", fontStyle: "italic" },
+      { token: "keyword", foreground: "7c9fb8", fontStyle: "bold" },
+      { token: "register", foreground: "d49999" },
+      { token: "number.hex", foreground: "b8d4a8" },
+      { token: "number.bin", foreground: "99d1d4" },
+      { token: "number", foreground: "a8c4d6" },
+      { token: "delimiter", foreground: "d4c899" },
+      { token: "identifier", foreground: "c99dd4" },
+      { token: "white", background: "1e1e1e" },
     ],
-    colors: {},
+    colors: {
+      // override editor colors if you like
+    },
   });
 };
 
 interface CodeWindowProps {
   code: string;
   PC: number; // zero-based instruction index
+  className?: string;
+  width?: number;
+  empty?: boolean; // whether the code is empty
 }
 
-export function CodeViewer({ code, PC }: CodeWindowProps) {
+export function CodeViewer({
+  code,
+  PC,
+  className,
+  width,
+  empty,
+}: CodeWindowProps) {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monaco | null>(null);
   const decorationsRef = useRef<string[]>([]);
@@ -67,42 +127,45 @@ export function CodeViewer({ code, PC }: CodeWindowProps) {
     const mon = monacoRef.current;
     if (!editor || !mon) return;
 
-    // const lineNum = PC + 1;
-    // decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
-    //   {
-    //     range: new mon.Range(lineNum, 1, lineNum, 1),
-    //     options: { isWholeLine: true, className: "currentLine" },
-    //   },
-    // ]);
-    // editor.revealLineInCenter(lineNum);
+    const lineNum = PC + 1;
+    decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
+      {
+        range: new mon.Range(lineNum, 1, lineNum, 1),
+        options: { isWholeLine: true, className: "currentLine" },
+      },
+    ]);
+    editor.revealLineInCenter(lineNum);
   };
 
   useEffect(() => {
-    updateHighlight();
-  }, [PC]);
+    if (!empty) updateHighlight();
+  }, [PC, empty]);
 
   const handleMount: OnMount = (editor, mon) => {
     editorRef.current = editor;
     monacoRef.current = mon;
-    editorRef.current.updateOptions({
+    editor.updateOptions({
       readOnly: true,
       fontSize: 18,
       minimap: { enabled: false },
+      contextmenu: false,
+      glyphMargin: false,
+      folding: false,
+      overviewRulerLanes: 0,
+      overviewRulerBorder: false,
     });
-    updateHighlight();
+    if (!empty) updateHighlight();
   };
 
   return (
-    <>
-      <Editor
-        className="h-[calc(100vh-2.5rem)]"
-        width={"300px"}
-        defaultLanguage={Z16_LANG}
-        theme={Z16_THEME}
-        beforeMount={beforeMount}
-        onMount={handleMount}
-        value={code}
-      />
-    </>
+    <Editor
+      className={className}
+      width={width}
+      defaultLanguage={Z16_LANG}
+      theme={Z16_THEME}
+      beforeMount={beforeMount}
+      onMount={handleMount}
+      value={code}
+    />
   );
 }

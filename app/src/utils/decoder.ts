@@ -1,6 +1,4 @@
-/* This function takes a binary string like: 1001010001110000 and converts it
- to a human-readable string like xor x1, x2 in order to make sure that we're
- extracting the fields correctly.*/
+import { signExtend } from "./binary";
 
 export enum Opcode {
   "Rtype" = 0,
@@ -146,7 +144,7 @@ export function decodeToInstruction(instruction: number): Instruction {
     }
     case Opcode.Jtype: {
       // Immediate is from 3-5 and 9-14
-      const imm = ((instruction >> 3) & 0x0007) | ((instruction >> 9) & 0x003f);
+      let imm = ((instruction >> 3) & 0x0007) | ((instruction >> 6) & 0x01f8);
       const flag = (instruction >> 15) & 0x0001; // Bit 15
       return {
         opcode: Opcode.Jtype,
@@ -157,7 +155,7 @@ export function decodeToInstruction(instruction: number): Instruction {
     }
     case Opcode.Utype: {
       // Immediate is from 3-5 and 9-14
-      const imm = ((instruction >> 3) & 0x0007) | ((instruction >> 9) & 0x003f);
+      let imm = ((instruction >> 3) & 0x0007) | ((instruction >> 6) & 0x01f8);
       const flag = (instruction >> 15) & 0x0001; // Bit 15
       return {
         opcode: Opcode.Utype,
@@ -179,27 +177,19 @@ export function decodeToInstruction(instruction: number): Instruction {
   }
 }
 
-/** sign-extend a `bits`-wide value */
-function signExtend(value: number, bits: number): number {
-  const mask = (1 << bits) - 1;
-  const signBit = 1 << (bits - 1);
-  value &= mask;
-  return (value ^ signBit) - signBit;
-}
-
 export function decodeRTypeInstruction(i: RTypeInstruction): string {
   const { funct3, funct4, rd, rs2 } = i;
   switch (funct3) {
     case 0:
       switch (funct4) {
         case 0:
-          return `ADD  x${rd}, x${rs2}`;
+          return `ADD   x${rd}, x${rs2}`;
         case 1:
-          return `SUB  x${rd}, x${rs2}`;
+          return `SUB   x${rd}, x${rs2}`;
         case 11:
-          return `JR   x${rd}`;
+          return `JR    x${rd}`;
         case 12:
-          return `JALR x${rd}, x${rs2}`;
+          return `JALR  x${rd}, x${rs2}`;
       }
       break;
     case 1:
@@ -211,24 +201,24 @@ export function decodeRTypeInstruction(i: RTypeInstruction): string {
     case 3:
       switch (funct4) {
         case 4:
-          return `SLL  x${rd}, x${rs2}`;
+          return `SLL   x${rd}, x${rs2}`;
         case 5:
-          return `SRL  x${rd}, x${rs2}`;
+          return `SRL   x${rd}, x${rs2}`;
         case 6:
-          return `SRA  x${rd}, x${rs2}`;
+          return `SRA   x${rd}, x${rs2}`;
       }
       break;
     case 4:
-      if (funct4 === 7) return `OR   x${rd}, x${rs2}`;
+      if (funct4 === 7) return `OR    x${rd}, x${rs2}`;
       break;
     case 5:
-      if (funct4 === 8) return `AND  x${rd}, x${rs2}`;
+      if (funct4 === 8) return `AND   x${rd}, x${rs2}`;
       break;
     case 6:
-      if (funct4 === 9) return `XOR  x${rd}, x${rs2}`;
+      if (funct4 === 9) return `XOR   x${rd}, x${rs2}`;
       break;
     case 7:
-      if (funct4 === 10) return `MV   x${rd}, x${rs2}`;
+      if (funct4 === 10) return `MV    x${rd}, x${rs2}`;
       break;
   }
   throw new Error(`Unknown R-type (f3=${funct3}, f4=${funct4})`);
@@ -237,30 +227,31 @@ export function decodeRTypeInstruction(i: RTypeInstruction): string {
 export function decodeITypeInstruction(i: ITypeInstruction): string {
   const { funct3, rd, imm } = i;
   const simm = signExtend(imm, 7);
+  const immHex = imm.toString(16).padStart(2, "0");
   const shamt = imm & 0xf;
   switch (funct3) {
     case 0:
-      return `ADDI  x${rd}, ${simm}`;
+      return `ADDI  x${rd}, 0x${immHex}`;
     case 1:
-      return `SLTI  x${rd}, ${simm}`;
+      return `SLTI  x${rd}, 0x${immHex}`;
     case 2:
-      return `SLTUI x${rd}, ${imm}`; // unsigned
+      return `SLTUI x${rd}, 0x${immHex}`; // unsigned
     case 3: {
       // shifts all share f3=3 but differ by imm[6:4]
       const mode = (imm >> 4) & 0b111;
-      if (mode === 1) return `SLLI x${rd}, ${shamt}`;
-      if (mode === 2) return `SRLI x${rd}, ${shamt}`;
-      if (mode === 4) return `SRAI x${rd}, ${shamt}`;
+      if (mode === 1) return `SLLI  x${rd}, ${shamt}`;
+      if (mode === 2) return `SRLI  x${rd}, ${shamt}`;
+      if (mode === 4) return `SRAI  x${rd}, ${shamt}`;
       break;
     }
     case 4:
-      return `ORI   x${rd}, ${simm}`;
+      return `ORI   x${rd}, 0x${immHex}`;
     case 5:
-      return `ANDI  x${rd}, ${simm}`;
+      return `ANDI  x${rd}, 0x${immHex}`;
     case 6:
-      return `XORI  x${rd}, ${simm}`;
+      return `XORI  x${rd}, 0x${immHex}`;
     case 7:
-      return `LI    x${rd}, ${simm}`;
+      return `LI    x${rd}, 0x${immHex}`;
   }
   throw new Error(`Unknown I-type (f3=${funct3}, imm=${imm})`);
 }
@@ -298,9 +289,9 @@ export function decodeSTypeInstruction(i: STypeInstruction): string {
   const offset = signExtend(i.imm, 4);
   switch (i.funct3) {
     case 0:
-      return `SB  x${rs2}, ${offset}(x${rs1})`;
+      return `SB    x${rs2}, ${offset}(x${rs1})`;
     case 1:
-      return `SW  x${rs2}, ${offset}(x${rs1})`;
+      return `SW    x${rs2}, ${offset}(x${rs1})`;
   }
   throw new Error(`Unknown S-type (f3=${i.funct3})`);
 }
@@ -311,55 +302,60 @@ export function decodeLTypeInstruction(i: LTypeInstruction): string {
   const offset = signExtend(i.imm, 4);
   switch (i.funct3) {
     case 0:
-      return `LB   x${rd}, ${offset}(x${rs1})`;
+      return `LB    x${rd}, ${offset}(x${rs1})`;
     case 1:
-      return `LW   x${rd}, ${offset}(x${rs1})`;
+      return `LW    x${rd}, ${offset}(x${rs1})`;
     case 4:
-      return `LBU  x${rd}, ${offset}(x${rs1})`;
+      return `LBU   x${rd}, ${offset}(x${rs1})`;
   }
   throw new Error(`Unknown L-type (f3=${i.funct3})`);
 }
 
 export function decodeJTypeInstruction(i: JTypeInstruction): string {
-  // imm is already collected; we’ll just sign-extend it across 10 bits for example
-  const target = signExtend(i.imm, 10);
+  // sign extend the immediate
+  const target = signExtend(i.imm << 1, 9);
   if (i.flag === 0) {
-    return `J    ${target}`;
+    return `J     ${target}`;
   } else {
-    return `JAL  x${i.rd}, ${target}`;
+    return `JAL   x${i.rd}, ${target}`;
   }
 }
 
 export function decodeUTypeInstruction(i: UTypeInstruction): string {
   // U-type immediate is bits [15:7], shift left by 7
-  const imm32 = i.imm << 7;
+  const imm32 = i.imm;
+  const imm32Hex = imm32.toString(16);
   if (i.flag === 0) {
-    return `LUI   x${i.rd}, ${imm32}`;
+    return `LUI   x${i.rd}, 0x${imm32Hex}`;
   } else {
-    return `AUIPC x${i.rd}, ${imm32}`;
+    return `AUIPC x${i.rd}, 0x${imm32Hex}`;
   }
 }
 
 export function decodeToString(instr: Instruction): string {
-  switch (instr.opcode) {
-    case Opcode.Rtype:
-      return decodeRTypeInstruction(instr as RTypeInstruction);
-    case Opcode.Itype:
-      return decodeITypeInstruction(instr as ITypeInstruction);
-    case Opcode.Btype:
-      return decodeBTypeInstruction(instr as BTypeInstruction);
-    case Opcode.Stype:
-      return decodeSTypeInstruction(instr as STypeInstruction);
-    case Opcode.Ltype:
-      return decodeLTypeInstruction(instr as LTypeInstruction);
-    case Opcode.Jtype:
-      return decodeJTypeInstruction(instr as JTypeInstruction);
-    case Opcode.Utype:
-      return decodeUTypeInstruction(instr as UTypeInstruction);
-    case Opcode.ecall:
-      const svc = (instr as ECallInstruction).service;
-      return `ECALL ${svc}`;
-    default:
-      throw new Error(`Unsupported opcode: ${(instr as Instruction).opcode}`);
+  try {
+    switch (instr.opcode) {
+      case Opcode.Rtype:
+        return decodeRTypeInstruction(instr as RTypeInstruction);
+      case Opcode.Itype:
+        return decodeITypeInstruction(instr as ITypeInstruction);
+      case Opcode.Btype:
+        return decodeBTypeInstruction(instr as BTypeInstruction);
+      case Opcode.Stype:
+        return decodeSTypeInstruction(instr as STypeInstruction);
+      case Opcode.Ltype:
+        return decodeLTypeInstruction(instr as LTypeInstruction);
+      case Opcode.Jtype:
+        return decodeJTypeInstruction(instr as JTypeInstruction);
+      case Opcode.Utype:
+        return decodeUTypeInstruction(instr as UTypeInstruction);
+      case Opcode.ecall:
+        const svc = (instr as ECallInstruction).service;
+        return `ECALL ${svc}`;
+      default:
+        throw new Error(`Unsupported opcode: ${(instr as Instruction).opcode}`);
+    }
+  } catch (error) {
+    return "ERR";
   }
 }

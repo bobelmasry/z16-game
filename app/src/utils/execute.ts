@@ -1,3 +1,4 @@
+import { signExtend } from "./binary";
 import {
   Instruction,
   Opcode,
@@ -11,21 +12,17 @@ import {
   ECallInstruction,
 } from "./decoder";
 
+export interface CPUState {
+  registers: number[];
+  memory: Uint16Array<ArrayBuffer>;
+  pc: number;
+}
+
 export function executeInstruction(
   instruction: Instruction,
-  registers: number[],
-  pc: number,
-  memory: Uint8Array,
-  setRegisters: (r: number[]) => void,
-  setPC: (pc: number) => void,
-  setConsoleMessages: (
-    messages: string[] | ((prev: string[]) => string[])
-  ) => void,
-  setRunning: (r: boolean) => void,
-  debugMode: boolean
-) {
-  let newRegisters = [...registers];
-  let newPC = pc;
+  state: CPUState
+): CPUState {
+  let { registers, memory, pc } = state;
   let incrementPC = true;
   const logs: string[] = [];
 
@@ -50,20 +47,21 @@ export function executeInstruction(
       switch (funct3) {
         case 0:
           switch (funct4) {
-            case 0:
-              newRegisters[rd] += newRegisters[rs2];
+            case 0: // ADD
+              registers[rd] += registers[rs2];
               break;
-            case 1:
-              newRegisters[rd] -= newRegisters[rs2];
+            case 1: // SUB
+              registers[rd] -= registers[rs2];
               break;
-            case 4:
-              newPC = newRegisters[rd];
+            case 4: // JR
+              pc = registers[rd];
               incrementPC = false;
               break;
             case 8: {
-              const nextPC = newPC + 2;
-              newPC = newRegisters[rd];
-              newRegisters[rd] = nextPC;
+              // JALR
+              const nextPC = pc + 1;
+              pc = registers[rd];
+              registers[rd] = nextPC;
               incrementPC = false;
               break;
             }
@@ -71,256 +69,205 @@ export function executeInstruction(
               logs.push("Unknown R-type instruction");
           }
           break;
-        case 1:
-          newRegisters[rd] =
-            (newRegisters[rd] << 16) >> 16 < (newRegisters[rs2] << 16) >> 16
-              ? 1
-              : 0;
+        case 1: // SLT
+          registers[rd] = registers[rd] < registers[rs2] ? 1 : 0;
           break;
-        case 2:
-          newRegisters[rd] = newRegisters[rd] < newRegisters[rs2] ? 1 : 0;
+        case 2: // SLTU
+          registers[rd] = registers[rd] >>> 0 < registers[rs2] >>> 0 ? 1 : 0; // >>> 0 forces unsigned comparison
           break;
-        case 3:
+        case 3: // Shift operations
           switch (funct4) {
-            case 4:
-              newRegisters[rd] <<= newRegisters[rs2];
+            case 4: // SLL
+              registers[rd] <<= registers[rs2];
               break;
-            case 5:
-              newRegisters[rd] >>>= newRegisters[rs2];
+            case 5: // SRL
+              registers[rd] >>>= registers[rs2];
               break;
-            case 6:
-              newRegisters[rd] >>= newRegisters[rs2];
+            case 6: // SRA
+              registers[rd] >>= registers[rs2];
               break;
             default:
               logs.push("Unknown shift instruction");
           }
           break;
-        case 4:
-          newRegisters[rd] |= newRegisters[rs2];
+        // Bitwise operations
+        case 4: // OR
+          registers[rd] |= registers[rs2];
           break;
-        case 5:
-          newRegisters[rd] &= newRegisters[rs2];
+        case 5: // AND
+          registers[rd] &= registers[rs2];
           break;
-        case 6:
-          newRegisters[rd] ^= newRegisters[rs2];
+        case 6: // XOR
+          registers[rd] ^= registers[rs2];
           break;
-        case 7:
-          newRegisters[rd] = newRegisters[rs2];
+        case 7: // MV
+          registers[rd] = registers[rs2];
           break;
         default:
           logs.push("Unknown R-type");
       }
       break;
     }
-
     case Opcode.Itype: {
       const inst = instruction as ITypeInstruction;
       const { funct3, rd, imm: rawImm } = inst;
       // sign-extend 7-bit
-      let imm = rawImm & 0x7f;
-      if (imm & 0x40) imm |= 0xffffff80;
-      const shamt = imm & 0x0f;
-      const mode = (imm >> 4) & 0b111;
+      let imm = signExtend(rawImm, 7);
 
       switch (funct3) {
         case 0:
-          newRegisters[rd] += imm;
+          registers[rd] += imm;
           break;
         case 1:
-          newRegisters[rd] = (newRegisters[rd] << 16) >> 16 < imm ? 1 : 0;
+          registers[rd] = (registers[rd] << 16) >> 16 < imm ? 1 : 0;
           break;
         case 2:
-          newRegisters[rd] = newRegisters[rd] < imm ? 1 : 0;
+          registers[rd] = registers[rd] < imm ? 1 : 0;
           break;
         case 3:
-          if (mode === 1) newRegisters[rd] <<= shamt;
-          else if (mode === 2) newRegisters[rd] >>>= shamt;
-          else if (mode === 4) newRegisters[rd] >>= shamt;
+          const shamt = imm & 0x0f;
+          const mode = (imm >> 4) & 0b111;
+          if (mode === 1) registers[rd] <<= shamt; // SLLI
+          else if (mode === 2) registers[rd] >>>= shamt; // SRLI
+          else if (mode === 4) registers[rd] >>= shamt; // SRAI
           else logs.push("Unknown shift instruction");
           break;
-        case 4:
-          newRegisters[rd] |= imm;
+        case 4: // ORI
+          registers[rd] |= imm;
           break;
-        case 5:
-          newRegisters[rd] &= imm;
+        case 5: // ANDI
+          registers[rd] &= imm;
           break;
-        case 6:
-          newRegisters[rd] ^= imm;
+        case 6: // XORI
+          registers[rd] ^= imm;
           break;
-        case 7:
-          newRegisters[rd] = imm;
+        case 7: // LI
+          registers[rd] = imm;
           break;
         default:
           logs.push("Unknown I-type");
       }
       break;
     }
-
     case Opcode.Btype: {
       const inst = instruction as BTypeInstruction;
       const { funct3, rd: rs1, rs2, imm: raw4 } = inst;
-      // sign-extend 4 bits then <<1
-      let imm = (raw4 << 1) & 0x1f;
-      if (imm & 0x10) imm |= 0xffffffe0;
-
+      let imm = signExtend(raw4, 4);
       let take = false;
+
       switch (funct3) {
-        case 0:
-          take = newRegisters[rs1] === newRegisters[rs2];
+        case 0: // BEQ
+          take = registers[rs1] === registers[rs2];
           break;
-        case 1:
-          take = newRegisters[rs1] !== newRegisters[rs2];
+        case 1: // BNE
+          take = registers[rs1] !== registers[rs2];
           break;
-        case 2:
-          take = newRegisters[rs1] === 0;
+        case 2: // BZ
+          take = registers[rs1] === 0;
           break;
-        case 3:
-          take = newRegisters[rs1] !== 0;
+        case 3: // BNZ
+          take = registers[rs1] !== 0;
           break;
-        case 4:
-          take =
-            (newRegisters[rs1] << 16) >> 16 < (newRegisters[rs2] << 16) >> 16;
+        case 4: // BLT
+          take = registers[rs1] < registers[rs2];
           break;
-        case 5:
-          take =
-            (newRegisters[rs1] << 16) >> 16 >= (newRegisters[rs2] << 16) >> 16;
+        case 5: // BGE
+          take = registers[rs1] >= registers[rs2];
           break;
-        case 6:
-          take = newRegisters[rs1] < newRegisters[rs2];
+        case 6: // BLTU
+          take = registers[rs1] >>> 0 < registers[rs2] >>> 0;
           break;
-        case 7:
-          take = newRegisters[rs1] >= newRegisters[rs2];
+        case 7: // BGEU
+          take = registers[rs1] >>> 0 >= registers[rs2] >>> 0;
           break;
         default:
           logs.push("Unknown branch instruction");
       }
 
       if (take) {
-        newPC += imm * 2;
+        pc += imm;
         incrementPC = false;
-        logs.push(`Branch taken. New PC: 0x${newPC.toString(16)}`);
+        logs.push(`Branch taken. New PC: 0x${pc.toString(16)}`);
       }
       break;
     }
-
     case Opcode.Stype: {
       const inst = instruction as STypeInstruction;
       const { funct3, rd: rs1, rs2, imm: raw4 } = inst;
-      let imm = raw4 & 0x0f;
-      if (imm & 0x8) imm |= 0xfffffff0;
-      const addr = newRegisters[rs2] + imm;
+      let imm = signExtend(raw4, 4);
+      const addr = registers[rs2] + imm;
 
       switch (funct3) {
         case 0:
-          setByte(addr, newRegisters[rs1]);
+          setByte(addr, registers[rs1]);
           break;
         case 1:
-          setWord(addr, newRegisters[rs1]);
+          setWord(addr, registers[rs1]);
           break;
         default:
           logs.push("Unknown store");
       }
       break;
     }
-
     case Opcode.Ltype: {
       const inst = instruction as LTypeInstruction;
       const { funct3, rd, rs2, imm: raw4 } = inst;
-      let imm = raw4 & 0x0f;
-      if (imm & 0x8) imm |= 0xfffffff0;
-      const addr = newRegisters[rs2] + imm;
+      let imm = signExtend(raw4, 4);
+      const addr = registers[rs2] + imm;
 
       switch (funct3) {
         case 0:
-          newRegisters[rd] = (getByte(addr) << 24) >> 24;
+          registers[rd] = (getByte(addr) << 24) >> 24;
           break;
         case 1:
-          newRegisters[rd] = getWord(addr);
+          registers[rd] = getWord(addr);
           break;
         case 4:
-          newRegisters[rd] = getByte(addr) & 0xff;
+          registers[rd] = getByte(addr) & 0xff;
           break;
         default:
           logs.push("Unknown load");
       }
       break;
     }
-
     case Opcode.Jtype: {
       const inst = instruction as JTypeInstruction;
       const { rd, imm: rawImm, flag } = inst;
-      // rawImm is already bits[9:4]<<4 | bits[3:1]<<1
-      let imm = rawImm & ((1 << 10) - 1);
-      if (imm & 0x200) imm |= ~0x3ff; // sign-extend 10 bits
-
+      let imm = signExtend(rawImm, 9);
       if (flag === 0) {
-        newPC += imm * 2;
+        pc += imm;
       } else {
-        const nextPC = newPC + 2;
-        newPC += imm * 2;
-        newRegisters[rd] = nextPC;
+        const nextPC = pc + 1;
+        pc += imm;
+        registers[rd] = nextPC;
       }
       incrementPC = false;
       break;
     }
-
     case Opcode.Utype: {
       const inst = instruction as UTypeInstruction;
       const { rd, imm: rawImm, flag } = inst;
       // imm from bits[15:7], shift left 7
       const val = rawImm << 7;
       if (flag === 0) {
-        newRegisters[rd] = val;
+        registers[rd] = val;
       } else {
-        newRegisters[rd] = pc + val;
+        registers[rd] = pc + val;
       }
       break;
     }
-
     case Opcode.ecall: {
-      const inst = instruction as ECallInstruction;
-      const svc = inst.service;
-      switch (svc) {
-        case 1:
-          logs.push(`Integer Output: ${(newRegisters[6] << 16) >> 16}`);
-          break;
-        case 3:
-          logs.push("Program terminated by ecall 3");
-          setRunning(false);
-          break;
-        case 5: {
-          let addr = newRegisters[0];
-          let out = "";
-          while (addr < memory.length) {
-            const c = memory[addr++];
-            if (c === 0) break;
-            out += String.fromCharCode(c);
-          }
-          logs.push(`String Output: ${out}`);
-          break;
-        }
-        default:
-          logs.push(`Unknown ecall: ${svc}`);
-      }
-      break;
+      break; // ecall is handled separately
     }
-
     default:
-      logs.push(`Unknown opcode: ${(instruction as Instruction).opcode}`);
+      break;
   }
-
   if (incrementPC) {
-    newPC += 2;
+    pc += 1;
   }
-
-  setRegisters(newRegisters);
-  setPC(newPC);
-  if (debugMode) {
-    logs.push(
-      "Registers: " + newRegisters.map((v, i) => `x${i}=${v}`).join(" ")
-    );
-  }
-  if (logs.length) {
-    setConsoleMessages((prev) => [...prev, ...logs]);
-  }
+  return {
+    registers,
+    memory,
+    pc,
+  };
 }
