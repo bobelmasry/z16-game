@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { CodeViewer } from "../../components/code";
 import { RefreshCw, Play, Pause, StepForward } from "lucide-react";
 import { executeInstruction } from "@/utils/execute";
+import Registers from "../../components/registers";
 
 export default function Home() {
   // CPU state
@@ -73,6 +74,37 @@ export default function Home() {
           console.log("Console Output:", output);
 
           break;
+        case 9: {
+          const startAddress = registers[6]; // x6 is a0
+          const length = registers[7]; // x7 is a1
+
+          const output: string[] = [];
+          for (let i = startAddress; i < startAddress + length; i++) {
+            const memoryWord = memory[i];
+            const byte1 = memoryWord & 0xff; // Get first byte
+            const byte2 = (memoryWord >> 8) & 0xff; // Get second byte
+            // Print the address and the two bytes
+            output.push(
+              `0x${i.toString(16).padStart(4, "0")}: 0x${byte1
+                .toString(16) // // Also display as characters
+                .padStart(2, "0")} 0x${byte2
+                .toString(16)
+                .padStart(2, "0")}  (${String.fromCharCode(
+                byte1
+              )}, ${String.fromCharCode(byte2)})`
+            );
+          }
+
+          setConsoleMessages((prev) => [
+            ...prev,
+            `Memory Dump from 0x${startAddress
+              .toString(16)
+              .padStart(4, "0")} (${length} words):`,
+            ...output,
+          ]);
+
+          break;
+        }
         case 10: // Program exit
           exit(); // Stop the simulation
           break;
@@ -102,8 +134,7 @@ export default function Home() {
     setState("exited");
     setPC(0);
     setRegisters(Array(8).fill(0));
-    setConsoleMessages([]);
-    console.log("Simulation exited.");
+    setConsoleMessages((m) => [...m, "Program exited."]);
   };
 
   const step = () => {
@@ -226,6 +257,7 @@ export default function Home() {
           }
         />
         <div className="flex-1 p-4 overflow-y-auto bg-neutral-800 text-white">
+          <div className="h-[50rem] bg-black mb-4"></div>
           <div className="mb-4">
             <Label htmlFor="file-upload" className="block mb-2">
               Upload Z16 Binary File
@@ -247,23 +279,14 @@ export default function Home() {
               />
             </div>
           </div>
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold mb-2">Registers</h2>
-            <div className="grid grid-cols-4 gap-4">
-              {registers.map((value, index) => (
-                <div key={index} className="bg-neutral-700 p-2 rounded">
-                  x{index}: {value}
-                </div>
-              ))}
-            </div>
-          </div>
+          <Registers registers={registers} />
           <div className="mb-4">
             <h2 className="text-lg font-semibold mb-2">PC</h2>
-            <div className="bg-neutral-700 p-2 rounded">{PC}</div>
+            <div className="bg-neutral-700 p-2 rounded">{PC * 2}</div>
           </div>
           <div className="mb-4">
             <h2 className="text-lg font-semibold mb-2">Console Output</h2>
-            <div className="bg-neutral-700 p-2 rounded h-32 overflow-y-auto">
+            <div className="bg-neutral-700 p-2 rounded h-64 overflow-y-auto">
               {consoleMessages.map((msg, index) => (
                 <p key={index}>{msg}</p>
               ))}
