@@ -122,9 +122,8 @@ export default function Home() {
 
           break;
           case 4: {
-          // Play tone, a0 = frequency, a1 = duration_ms
-          const frequency = registers[6]; // x6 is a0
-          const duration = registers[7]; // x7 is a1
+          const frequency = registers[6]; // a0
+          const duration = registers[7];  // a1
 
           if (frequency < 0 || frequency > 65535) {
             setConsoleMessages((prev) => [
@@ -141,24 +140,26 @@ export default function Home() {
             return;
           }
 
-          // 🎵 Web Audio API to play the tone
           const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
           const oscillator = audioCtx.createOscillator();
           const gainNode = audioCtx.createGain();
 
-          oscillator.type = "sine"; // Other types: "square", "triangle", "sawtooth"
+          // Normalize audioVolume (0–255) to gain (0.0–1.0)
+          const normalizedVolume = Math.max(0, Math.min(audioVolume, 255)) / 255;
+          gainNode.gain.setValueAtTime(normalizedVolume, audioCtx.currentTime);
+
+          oscillator.type = "sine";
           oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
           oscillator.connect(gainNode);
           gainNode.connect(audioCtx.destination);
 
           oscillator.start();
-          setAudioPlaying(true); // UI state flag
+          setAudioPlaying(true);
           setConsoleMessages((prev) => [
             ...prev,
-            `Playing tone: ${frequency} Hz for ${duration} ms`,
+            `Playing tone: ${frequency} Hz for ${duration} ms at volume ${audioVolume}/255`,
           ]);
 
-          // Stop after `duration` ms
           setTimeout(() => {
             oscillator.stop();
             setAudioPlaying(false);
