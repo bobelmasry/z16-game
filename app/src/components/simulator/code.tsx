@@ -1,6 +1,10 @@
+"use client";
+import { useSimulatorStore } from "@/lib/store/simulator";
+import { decodeToString } from "@/lib/utils/decoder";
 import Editor, { OnMount, BeforeMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import { useEffect, useRef } from "react";
+import { useShallow } from "zustand/shallow";
 
 const Z16_LANG = "z16";
 const Z16_THEME = "z16Theme";
@@ -98,26 +102,24 @@ const beforeMount: BeforeMount = (monaco) => {
       { token: "white", background: "1e1e1e" },
     ],
     colors: {
-      // override editor colors if you like
+      // override editor colors if you like, I don't really want to
     },
   });
 };
 
 interface CodeWindowProps {
-  code: string;
-  PC: number; // zero-based instruction index
   className?: string;
   width?: number;
-  empty?: boolean; // whether the code is empty
 }
 
-export function CodeViewer({
-  code,
-  PC,
-  className,
-  width,
-  empty,
-}: CodeWindowProps) {
+export function CodeViewer({ className, width }: CodeWindowProps) {
+  const { PC, code, empty } = useSimulatorStore(
+    useShallow((s) => ({
+      PC: s.pc,
+      code: s.instructions.map((inst) => decodeToString(inst)).join("\n"),
+      empty: s.instructions.length === 0,
+    }))
+  );
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monaco | null>(null);
   const decorationsRef = useRef<string[]>([]);
@@ -165,7 +167,7 @@ export function CodeViewer({
       theme={Z16_THEME}
       beforeMount={beforeMount}
       onMount={handleMount}
-      value={code}
+      value={code || "# Upload a binary file\n# to get started!"}
     />
   );
 }

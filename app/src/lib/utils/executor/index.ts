@@ -1,4 +1,4 @@
-import { signExtend } from "./binary";
+import { signExtend } from "../binary";
 import {
   Instruction,
   Opcode,
@@ -10,9 +10,9 @@ import {
   JTypeInstruction,
   UTypeInstruction,
   ECallInstruction,
-} from "./decoder";
+} from "../decoder";
 
-export interface CPUState {
+export interface ExecutionState {
   registers: number[];
   memory: Uint16Array<ArrayBuffer>;
   pc: number;
@@ -20,8 +20,8 @@ export interface CPUState {
 
 export function executeInstruction(
   instruction: Instruction,
-  state: CPUState
-): CPUState {
+  state: ExecutionState
+): ExecutionState {
   let { registers, memory, pc } = state;
   let incrementPC = true;
   const logs: string[] = [];
