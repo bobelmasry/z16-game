@@ -12,6 +12,7 @@ export type SimulatorStore = {
   state: SimulatorState;
   prevState?: SimulatorState;
   instructions: Instruction[];
+  speed: number; // Optional speed control for execution
 
   reset: () => void;
   step: () => void;
@@ -31,6 +32,7 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   instructions: [],
   state: "paused",
   fileName: null,
+  speed: 300, // Default speed for execution
 
   reset: () => {
     set(() => ({
@@ -82,12 +84,27 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
       }
     }),
 
-  play: () =>
-    set((state) => {
-      if (state.state === "running") return state; // Already running
+  play: () => {
+  const runNextStep = () => {
+    const { state, step, play, speed } = get();
 
-      return { state: "running" }; // TODO: Start the execution loop
-    }),
+    if (state !== "running") return; // Stop if state changed
+    step(); // Execute a single instruction
+
+    // Check again if we should continue
+    if (get().state === "running") {
+      setTimeout(runNextStep, speed); // Continue after delay
+    }
+  };
+
+  set((state) => {
+    if (state.state === "running") return state;
+    // Start loop
+    setTimeout(runNextStep, state.speed); // Default speed is 300ms
+    return { state: "running" };
+  });
+  },
+
 
   pause: () => {
     // TODO: Stop the execution loop

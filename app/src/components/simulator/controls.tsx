@@ -4,6 +4,7 @@ import { Ban, Pause, Play, RefreshCw, StepForward } from "lucide-react";
 import { useSimulatorStore } from "@/lib/store/simulator";
 import { useShallow } from "zustand/shallow";
 import { useOperatingSystemStore } from "@/lib/store/os";
+import { Slider } from "../ui/slider";
 
 export default function Controls() {
   const { reset, step, play, pause, state } = useSimulatorStore(
@@ -66,6 +67,21 @@ export default function Controls() {
             <StepForward className="w-4 h-4" /> Step
           </Button>
         )}
+        <p className="p-4">Simulation speed: </p>
+        {
+        
+        /* Slider needs to be fixed */
+        
+        }
+        <Slider
+          defaultValue={[50]}
+          max={100}
+          step={1}
+          className="w-40 h-4"
+          onValueChange={(value) => {
+            useSimulatorStore.setState({ speed: value[0] });
+          }}
+        />
       </div>
       <h1 className="text-emerald-600 font-bold text-2xl">Zx16 Simulator</h1>
     </div>
