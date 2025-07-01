@@ -76,6 +76,14 @@ export default function Home() {
           setConsoleMessages((prev) => [...prev, `Output: ${output}`]);
 
           break;
+        case 8: {
+          // registers dump, print all registers to console
+          const output = registers
+            .map((value, index) => `x${index}: ${value} (0x${value.toString(16)})`)
+            .join("\n");
+          setConsoleMessages((prev) => [...prev, `Registers Dump:\n${output}`]);
+          break;
+        }
         case 9: {
           const startAddress = Math.floor(registers[6]) / 2; // x6 is a0
           const length = registers[7]; // x7 is a1
