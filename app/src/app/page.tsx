@@ -18,6 +18,8 @@ export default function Home() {
   // CPU state
   const [registers, setRegisters] = useState(Array(8).fill(0));
   const [PC, setPC] = useState(0);
+  const [audioVolume, setAudioVolume] = useState(128); // Default volume level
+  const [audioPlaying, setAudioPlaying] = useState(false); // Whether audio is currently playing
 
   // IO-related state
   const [consoleMessages, setConsoleMessages] = useState<string[]>([]); // Stores console output logs
@@ -52,8 +54,51 @@ export default function Home() {
     if (inst.opcode === Opcode.ecall) {
       const service = inst.service;
       switch (service) {
-        case 1:
+        case 1: {
+
+              /* THIS NEEDS TO BE FIXED */
+
+        const inputString = prompt("Enter a string:");
+        if (inputString !== null) {
+          const maxLength = registers[7]; // a1: max length including null terminator
+          const startByteAddr = registers[6]; // a0: byte address
+
+          let totalBytesToWrite = Math.min(inputString.length, maxLength - 1); // leave space for null terminator
+          let bytePos = 0;
+
+          for (let i = 0; i < totalBytesToWrite; i++) {
+            const charCode = inputString.charCodeAt(i);
+            const wordIndex = Math.floor((startByteAddr + i) / 2);
+            const byteOffset = (startByteAddr + i) % 2;
+
+            if (byteOffset === 0) {
+              memory[wordIndex] = (memory[wordIndex] & 0xff00) | (charCode & 0xff); // write to lower byte
+            } else {
+              memory[wordIndex] = (memory[wordIndex] & 0x00ff) | ((charCode & 0xff) << 8); // upper byte
+            }
+            bytePos++;
+          }
+
+          // Null-terminate
+          const nullIndex = Math.floor((startByteAddr + bytePos) / 2);
+          const nullOffset = (startByteAddr + bytePos) % 2;
+          if (nullOffset === 0) {
+            memory[nullIndex] = memory[nullIndex] & 0xff00; // clear lower byte
+          } else {
+            memory[nullIndex] = memory[nullIndex] & 0x00ff; // clear upper byte
+          }
+
+          registers[6] = bytePos; // set a0 to length of actual string (excluding null terminator)
+        }
+        break;
+      }
+
         case 2:
+          // read integer from console input and store in x0 register (t0)
+          const inputInteger = prompt("Enter an integer:");
+          if (inputInteger !== null) {
+            registers[0] = parseInt(inputInteger, 10);
+          }
           break;
         case 3:
           // Print string to console from address of a0 (x6) register
@@ -76,6 +121,73 @@ export default function Home() {
           setConsoleMessages((prev) => [...prev, `Output: ${output}`]);
 
           break;
+          case 4: {
+          // Play tone, a0 = frequency, a1 = duration_ms
+          const frequency = registers[6]; // x6 is a0
+          const duration = registers[7]; // x7 is a1
+
+          if (frequency < 0 || frequency > 65535) {
+            setConsoleMessages((prev) => [
+              ...prev,
+              "Error: Frequency must be between 0 and 65535.",
+            ]);
+            return;
+          }
+          if (duration < 0 || duration > 65535) {
+            setConsoleMessages((prev) => [
+              ...prev,
+              "Error: Duration must be between 0 and 65535 milliseconds.",
+            ]);
+            return;
+          }
+
+          // 🎵 Web Audio API to play the tone
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+
+          oscillator.type = "sine"; // Other types: "square", "triangle", "sawtooth"
+          oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+
+          oscillator.start();
+          setAudioPlaying(true); // UI state flag
+          setConsoleMessages((prev) => [
+            ...prev,
+            `Playing tone: ${frequency} Hz for ${duration} ms`,
+          ]);
+
+          // Stop after `duration` ms
+          setTimeout(() => {
+            oscillator.stop();
+            setAudioPlaying(false);
+            setConsoleMessages((prev) => [...prev, "Tone finished."]);
+          }, duration);
+
+          break;
+        }
+          case 5: {
+            // Set audio volume, a0 = volume (0-255)
+            const volume = registers[6]; // x6 is a0
+            if (volume < 0 || volume > 255) {
+              setConsoleMessages((prev) => [
+                ...prev,
+                "Error: Volume must be between 0 and 255.",
+              ]);
+            }
+            setAudioVolume(volume);
+            break;
+          }
+        case 6: {
+          // Stop audio playback
+          setAudioPlaying(false);
+          break;
+        }
+        case 7: {
+          // Read the keyboard, a0 = keycode, a1 = 1 if a key is pressed, 0 if not
+          break;
+        }
         case 8: {
           // registers dump, print all registers to console
           const output = registers
@@ -85,6 +197,7 @@ export default function Home() {
           break;
         }
         case 9: {
+          // memory dump
           const startAddress = Math.floor(registers[6]) / 2; // x6 is a0
           const length = registers[7]; // x7 is a1
 
