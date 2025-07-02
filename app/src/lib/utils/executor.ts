@@ -9,7 +9,6 @@ import {
   LTypeInstruction,
   JTypeInstruction,
   UTypeInstruction,
-  ECallInstruction,
 } from "./decoder";
 
 export interface ExecutionState {
@@ -24,23 +23,20 @@ export function executeInstruction(
 ): ExecutionState {
   let { registers, memory, pc } = state;
   let incrementPC = true;
-  const logs: string[] = [];
 
-  // Helpers
+  // Optimized helpers with reduced overhead
   const getByte = (addr: number) => {
     const wordAddr = Math.floor(addr / 2);
-    if (wordAddr >= memory.length) return 0;
-    const word = memory[wordAddr];
+    const word = memory[wordAddr] || 0;
     return addr % 2 === 0 ? word & 0xff : (word >> 8) & 0xff;
   };
   const getWord = (addr: number) => {
     const wordAddr = Math.floor(addr / 2);
-    return wordAddr < memory.length ? memory[wordAddr] : 0;
+    return memory[wordAddr] || 0;
   };
   const setByte = (addr: number, value: number) => {
     const wordAddr = Math.floor(addr / 2);
-    if (wordAddr >= memory.length) return;
-    const word = memory[wordAddr];
+    const word = memory[wordAddr] || 0;
     if (addr % 2 === 0) {
       memory[wordAddr] = (word & 0xff00) | (value & 0xff);
     } else {
@@ -80,7 +76,7 @@ export function executeInstruction(
               break;
             }
             default:
-              logs.push("Unknown R-type instruction");
+            // Unknown R-type instruction - skip silently for performance
           }
           break;
         case 1: // SLT
@@ -101,7 +97,7 @@ export function executeInstruction(
               registers[rd] >>= registers[rs2];
               break;
             default:
-              logs.push("Unknown shift instruction");
+            // Unknown shift instruction - skip silently for performance
           }
           break;
         // Bitwise operations
@@ -118,7 +114,7 @@ export function executeInstruction(
           registers[rd] = registers[rs2];
           break;
         default:
-          logs.push("Unknown R-type");
+        // Unknown R-type - skip silently for performance
       }
       break;
     }
@@ -144,7 +140,9 @@ export function executeInstruction(
           if (mode === 1) registers[rd] <<= shamt; // SLLI
           else if (mode === 2) registers[rd] >>>= shamt; // SRLI
           else if (mode === 4) registers[rd] >>= shamt; // SRAI
-          else logs.push("Unknown shift instruction");
+          else {
+            // Unknown shift instruction - skip silently for performance
+          }
           break;
         case 4: // ORI
           registers[rd] |= imm;
@@ -159,7 +157,7 @@ export function executeInstruction(
           registers[rd] = imm;
           break;
         default:
-          logs.push("Unknown I-type");
+        // Unknown I-type - skip silently for performance
       }
       break;
     }
@@ -195,13 +193,12 @@ export function executeInstruction(
           take = registers[rs1] >>> 0 >= registers[rs2] >>> 0;
           break;
         default:
-          logs.push("Unknown branch instruction");
+        // Unknown branch instruction - skip silently for performance
       }
 
       if (take) {
         pc += imm * 2;
         incrementPC = false;
-        logs.push(`Branch taken. New PC: 0x${pc.toString(16)}`);
       }
       break;
     }
@@ -219,7 +216,7 @@ export function executeInstruction(
           setWord(addr, registers[rs1]);
           break;
         default:
-          logs.push("Unknown store");
+        // Unknown store - skip silently for performance
       }
       break;
     }
@@ -239,7 +236,6 @@ export function executeInstruction(
           registers[rd] = getByte(addr) & 0xff;
           break;
         default:
-          logs.push("Unknown load");
       }
       break;
     }
@@ -279,7 +275,7 @@ export function executeInstruction(
     pc += 2;
   }
   return {
-    registers,
+    registers: [...registers], // Create a new array to ensure reference changes
     memory,
     pc,
   };

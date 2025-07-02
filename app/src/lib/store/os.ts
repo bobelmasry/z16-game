@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { useSimulatorStore } from "./simulator";
 import { decodeToInstruction } from "../utils/decoder";
-import type { ExecutionState } from "../utils";
 
 type ECallRequest =
   | { type: "readString"; maxLen: number; addr: number }
@@ -184,9 +183,9 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           }
 
           get().consolePrint([
-            `Memory Dump from 0x${startAddress
+            `Memory Dump from 0x${(startAddress * 2)
               .toString(16)
-              .padStart(4, "0")} (${length} words):`,
+              .padStart(4, "0")} (${simulation.registers[7]} bytes):`,
             ...output,
           ]);
 

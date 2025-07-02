@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { Opcode, type Instruction } from "../utils/decoder";
 import { executeInstruction, type ExecutionState } from "../utils/executor";
 import { useOperatingSystemStore } from "./os";
-import { flushSync } from "react-dom";
+import { stepPerformanceMonitor } from "../utils/performance";
 
 type SimulatorState = "running" | "paused" | "blocked" | "halted";
 
@@ -16,6 +16,8 @@ export type SimulatorStore = {
   speed: number; // Speed in Hz, e.g., 3 means 3Hz (300ms per step)
   animationFrameId?: number; // For canceling animation frames
   totalInstructions: number; // Total instructions executed
+  executionStartTime?: number; // Timestamp when execution started
+  executionEndTime?: number; // Timestamp when execution ended
 
   reset: () => void;
   step: () => void;
@@ -39,6 +41,8 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   speed: 3, // Default speed (frequency) is 3, which means 300ms per step
   animationFrameId: undefined,
   totalInstructions: 0,
+  executionStartTime: undefined,
+  executionEndTime: undefined,
 
   reset: () => {
     const { animationFrameId } = get();
@@ -51,54 +55,73 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
       state: "paused",
       animationFrameId: undefined,
       totalInstructions: 0,
+      executionStartTime: undefined,
+      executionEndTime: undefined,
     }));
     useOperatingSystemStore.getState().reset();
   },
 
-  step: () =>
-    set((state) => {
-      const PC = state.pc;
-      if (PC > state.memory.length) return state; // TODO: Maybe throw a toast or something
+  step: () => {
+    stepPerformanceMonitor.startTiming();
 
-      // Here, we call the executeInstruction function
-      const instructionLocation = Math.floor(PC / 2);
-      const instruction = state.instructions.at(instructionLocation);
-      if (!instruction) return state; // No instruction to execute TODO: throw a toast or something
+    const state = get();
+
+    // Set execution start time on first step
+    if (
+      state.executionStartTime === undefined &&
+      state.totalInstructions === 0
+    ) {
+      set({ executionStartTime: performance.now() });
+    }
+
+    const PC = state.pc;
+    if (PC > state.memory.length) return; // TODO: Maybe throw a toast or something
+
+    // Here, we call the executeInstruction function
+    const instructionLocation = Math.floor(PC / 2);
+    const instruction = state.instructions[instructionLocation]; // Use direct array access instead of .at()
+    if (!instruction) return; // No instruction to execute TODO: throw a toast or something
+
+    // If the instruction is an ecall, give control to the OS
+    if (instruction.opcode === Opcode.ecall) {
+      const os = useOperatingSystemStore.getState();
+      const request = os.handleECall(instruction.service);
+
+      if (request) {
+        os.setPendingECall(request);
+        set({
+          state: "blocked",
+          totalInstructions: state.totalInstructions + 1,
+        });
+      } else {
+        set({
+          pc: PC + 2,
+          totalInstructions: state.totalInstructions + 1,
+        });
+      }
+    } else {
       const executionState: ExecutionState = {
         registers: state.registers,
         memory: state.memory,
         pc: PC,
       };
-      set(() => ({ totalInstructions: state.totalInstructions + 1 }));
-      // If the instruction is an ecall, give control to the OS
-      if (instruction.opcode === Opcode.ecall) {
-        const os = useOperatingSystemStore.getState();
-        const request = os.handleECall(instruction.service);
+      const result = executeInstruction(instruction, executionState);
 
-        if (request) {
-          os.setPendingECall(request);
-          return {
-            state: "blocked",
-          };
-        } else {
-          return {
-            pc: PC + 2,
-          };
-        }
-      } else {
-        const result = executeInstruction(instruction, executionState);
-        return {
-          pc: result.pc,
-          memory: result.memory,
-          registers: [...result.registers],
-          prevState: state.state,
-        };
-      }
-    }),
+      set({
+        pc: result.pc,
+        memory: result.memory,
+        registers: result.registers, // executor now returns a new array
+        prevState: state.state,
+        totalInstructions: state.totalInstructions + 1,
+      });
+    }
+
+    stepPerformanceMonitor.endTiming();
+  },
 
   play: () => {
     let lastTime = performance.now();
-    const targetInterval = 1000 / get().speed; // ms per instruction
+    let executionBatch = 1; // Number of instructions to execute per frame
 
     const runLoop = (currentTime: number) => {
       const { state, step, speed } = get();
@@ -109,10 +132,19 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
       }
 
       const deltaTime = currentTime - lastTime;
-      const currentTargetInterval = 1000 / speed; // Recalculate in case speed changed
+      const targetInterval = 1000 / speed;
 
-      // For high speeds (>60Hz), execute multiple instructions per frame
-      if (speed > 60) {
+      // Adaptive batching for high speeds to reduce overhead
+      if (speed > 100) {
+        executionBatch = Math.ceil(speed / 60); // Execute multiple instructions per frame
+        for (let i = 0; i < executionBatch && get().state === "running"; i++) {
+          step();
+        }
+        // For very high speeds, minimize frame delays
+        const frameId = requestAnimationFrame(runLoop);
+        set({ animationFrameId: frameId });
+      } else if (speed > 60) {
+        // Medium-high speeds: execute multiple per frame but respect timing somewhat
         const instructionsToExecute = Math.max(1, Math.floor(speed / 60));
         for (
           let i = 0;
@@ -121,12 +153,11 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
         ) {
           step();
         }
-        // For very high speeds, don't wait - just continue immediately
         const frameId = requestAnimationFrame(runLoop);
         set({ animationFrameId: frameId });
       } else {
-        // For lower speeds, use time-based execution
-        if (deltaTime >= currentTargetInterval) {
+        // Lower speeds: use time-based execution for accuracy
+        if (deltaTime >= targetInterval) {
           step();
           lastTime = currentTime;
         }
@@ -163,19 +194,34 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
     }));
   },
 
-  exit: (code: number) =>
+  exit: (code: number) => {
+    const { animationFrameId, executionStartTime, totalInstructions } = get();
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+    }
+
+    const executionEndTime = performance.now();
+    const executionTimeMs = executionStartTime
+      ? executionEndTime - executionStartTime
+      : 0;
+    const executionTimeSec = executionTimeMs / 1000;
+    const avgInstructionsPerSec =
+      executionTimeSec > 0 ? totalInstructions / executionTimeSec : 0;
+
+    set({ executionEndTime });
+
+    useOperatingSystemStore
+      .getState()
+      .consolePrint([
+        "Program exited with code " + code,
+        "Total instructions executed: " + totalInstructions,
+        "Execution time: " + executionTimeSec.toFixed(3) + " seconds",
+        "Average frequency: " + avgInstructionsPerSec.toFixed(1) + " Hz",
+      ]);
     set((state) => {
-      useOperatingSystemStore
-        .getState()
-        .consolePrint([
-          "Program exited with code " +
-            code +
-            " with " +
-            state.totalInstructions +
-            " instructions executed.",
-        ]);
       return { state: "halted" };
-    }),
+    });
+  },
 
   resume: () => {
     set((s) => ({ pc: s.pc + 2 }));
