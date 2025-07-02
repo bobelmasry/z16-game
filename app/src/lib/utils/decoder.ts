@@ -1,4 +1,5 @@
 import { signExtend } from "./binary";
+import { getRegisterName } from "../utils";
 
 export enum Opcode {
   "Rtype" = 0,
@@ -183,42 +184,48 @@ export function decodeRTypeInstruction(i: RTypeInstruction): string {
     case 0:
       switch (funct4) {
         case 0:
-          return `ADD   x${rd}, x${rs2}`;
+          return `ADD   ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
         case 1:
-          return `SUB   x${rd}, x${rs2}`;
+          return `SUB   ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
         case 11:
-          return `JR    x${rd}`;
+          return `JR    ${getRegisterName(rd)}`;
         case 12:
-          return `JALR  x${rd}, x${rs2}`;
+          return `JALR  ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
       }
       break;
     case 1:
-      if (funct4 === 2) return `SLT   x${rd}, x${rs2}`;
+      if (funct4 === 2)
+        return `SLT   ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
       break;
     case 2:
-      if (funct4 === 3) return `SLTU  x${rd}, x${rs2}`;
+      if (funct4 === 3)
+        return `SLTU  ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
       break;
     case 3:
       switch (funct4) {
         case 4:
-          return `SLL   x${rd}, x${rs2}`;
+          return `SLL   ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
         case 5:
-          return `SRL   x${rd}, x${rs2}`;
+          return `SRL   ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
         case 6:
-          return `SRA   x${rd}, x${rs2}`;
+          return `SRA   ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
       }
       break;
     case 4:
-      if (funct4 === 7) return `OR    x${rd}, x${rs2}`;
+      if (funct4 === 7)
+        return `OR    ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
       break;
     case 5:
-      if (funct4 === 8) return `AND   x${rd}, x${rs2}`;
+      if (funct4 === 8)
+        return `AND   ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
       break;
     case 6:
-      if (funct4 === 9) return `XOR   x${rd}, x${rs2}`;
+      if (funct4 === 9)
+        return `XOR   ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
       break;
     case 7:
-      if (funct4 === 10) return `MV    x${rd}, x${rs2}`;
+      if (funct4 === 10)
+        return `MV    ${getRegisterName(rd)}, ${getRegisterName(rs2)}`;
       break;
   }
   throw new Error(`Unknown R-type (f3=${funct3}, f4=${funct4})`);
@@ -231,27 +238,27 @@ export function decodeITypeInstruction(i: ITypeInstruction): string {
   const shamt = imm & 0xf;
   switch (funct3) {
     case 0:
-      return `ADDI  x${rd}, 0x${immHex}`;
+      return `ADDI  ${getRegisterName(rd)}, 0x${immHex}`;
     case 1:
-      return `SLTI  x${rd}, 0x${immHex}`;
+      return `SLTI  ${getRegisterName(rd)}, 0x${immHex}`;
     case 2:
-      return `SLTUI x${rd}, 0x${immHex}`; // unsigned
+      return `SLTUI ${getRegisterName(rd)}, 0x${immHex}`; // unsigned
     case 3: {
       // shifts all share f3=3 but differ by imm[6:4]
       const mode = (imm >> 4) & 0b111;
-      if (mode === 1) return `SLLI  x${rd}, ${shamt}`;
-      if (mode === 2) return `SRLI  x${rd}, ${shamt}`;
-      if (mode === 4) return `SRAI  x${rd}, ${shamt}`;
+      if (mode === 1) return `SLLI  ${getRegisterName(rd)}, ${shamt}`;
+      if (mode === 2) return `SRLI  ${getRegisterName(rd)}, ${shamt}`;
+      if (mode === 4) return `SRAI  ${getRegisterName(rd)}, ${shamt}`;
       break;
     }
     case 4:
-      return `ORI   x${rd}, 0x${immHex}`;
+      return `ORI   ${getRegisterName(rd)}, 0x${immHex}`;
     case 5:
-      return `ANDI  x${rd}, 0x${immHex}`;
+      return `ANDI  ${getRegisterName(rd)}, 0x${immHex}`;
     case 6:
-      return `XORI  x${rd}, 0x${immHex}`;
+      return `XORI  ${getRegisterName(rd)}, 0x${immHex}`;
     case 7:
-      return `LI    x${rd}, 0x${immHex}`;
+      return `LI    ${getRegisterName(rd)}, 0x${immHex}`;
   }
   throw new Error(`Unknown I-type (f3=${funct3}, imm=${imm})`);
 }
@@ -263,21 +270,33 @@ export function decodeBTypeInstruction(i: BTypeInstruction): string {
   const offset = signExtend(i.imm << 1, 5);
   switch (i.funct3) {
     case 0:
-      return `BEQ   x${rs1}, x${rs2}, ${offset}`;
+      return `BEQ   ${getRegisterName(rs1)}, ${getRegisterName(
+        rs2
+      )}, ${offset}`;
     case 1:
-      return `BNE   x${rs1}, x${rs2}, ${offset}`;
+      return `BNE   ${getRegisterName(rs1)}, ${getRegisterName(
+        rs2
+      )}, ${offset}`;
     case 2:
-      return `BZ    x${rs1}, ${offset}`; // ignore rs2
+      return `BZ    ${getRegisterName(rs1)}, ${offset}`; // ignore rs2
     case 3:
-      return `BNZ   x${rs1}, ${offset}`; // ignore rs2
+      return `BNZ   ${getRegisterName(rs1)}, ${offset}`; // ignore rs2
     case 4:
-      return `BLT   x${rs1}, x${rs2}, ${offset}`;
+      return `BLT   ${getRegisterName(rs1)}, ${getRegisterName(
+        rs2
+      )}, ${offset}`;
     case 5:
-      return `BGE   x${rs1}, x${rs2}, ${offset}`;
+      return `BGE   ${getRegisterName(rs1)}, ${getRegisterName(
+        rs2
+      )}, ${offset}`;
     case 6:
-      return `BLTU  x${rs1}, x${rs2}, ${offset}`;
+      return `BLTU  ${getRegisterName(rs1)}, ${getRegisterName(
+        rs2
+      )}, ${offset}`;
     case 7:
-      return `BGEU  x${rs1}, x${rs2}, ${offset}`;
+      return `BGEU  ${getRegisterName(rs1)}, ${getRegisterName(
+        rs2
+      )}, ${offset}`;
   }
   throw new Error(`Unknown B-type (f3=${i.funct3})`);
 }
@@ -289,9 +308,13 @@ export function decodeSTypeInstruction(i: STypeInstruction): string {
   const offset = signExtend(i.imm, 4);
   switch (i.funct3) {
     case 0:
-      return `SB    x${rs1}, ${offset}(x${rs2})`;
+      return `SB    ${getRegisterName(rs1)}, ${offset}(${getRegisterName(
+        rs2
+      )})`;
     case 1:
-      return `SW    x${rs1}, ${offset}(x${rs2})`;
+      return `SW    ${getRegisterName(rs1)}, ${offset}(${getRegisterName(
+        rs2
+      )})`;
   }
   throw new Error(`Unknown S-type (f3=${i.funct3})`);
 }
@@ -302,11 +325,11 @@ export function decodeLTypeInstruction(i: LTypeInstruction): string {
   const offset = signExtend(i.imm, 4);
   switch (i.funct3) {
     case 0:
-      return `LB    x${rd}, ${offset}(x${rs1})`;
+      return `LB    ${getRegisterName(rd)}, ${offset}(${getRegisterName(rs1)})`;
     case 1:
-      return `LW    x${rd}, ${offset}(x${rs1})`;
+      return `LW    ${getRegisterName(rd)}, ${offset}(${getRegisterName(rs1)})`;
     case 4:
-      return `LBU   x${rd}, ${offset}(x${rs1})`;
+      return `LBU   ${getRegisterName(rd)}, ${offset}(${getRegisterName(rs1)})`;
   }
   throw new Error(`Unknown L-type (f3=${i.funct3})`);
 }
@@ -317,7 +340,7 @@ export function decodeJTypeInstruction(i: JTypeInstruction): string {
   if (i.flag === 0) {
     return `J     ${target}`;
   } else {
-    return `JAL   x${i.rd}, ${target}`;
+    return `JAL   ${getRegisterName(i.rd)}, ${target}`;
   }
 }
 
@@ -326,9 +349,9 @@ export function decodeUTypeInstruction(i: UTypeInstruction): string {
   const imm32 = i.imm;
   const imm32Hex = imm32.toString(16);
   if (i.flag === 0) {
-    return `LUI   x${i.rd}, 0x${imm32Hex}`;
+    return `LUI   ${getRegisterName(i.rd)}, 0x${imm32Hex}`;
   } else {
-    return `AUIPC x${i.rd}, 0x${imm32Hex}`;
+    return `AUIPC ${getRegisterName(i.rd)}, 0x${imm32Hex}`;
   }
 }
 

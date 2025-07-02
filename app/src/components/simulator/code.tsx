@@ -3,7 +3,7 @@ import { useSimulatorStore } from "@/lib/store/simulator";
 import { decodeToString } from "@/lib/utils/decoder";
 import Editor, { OnMount, BeforeMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/shallow";
 
 const Z16_LANG = "z16";
@@ -55,6 +55,8 @@ const Z16_INSTRUCTIONS = [
 ];
 // adjust length if you have more registers
 const Z16_REGISTERS = Array.from({ length: 16 }, (_, i) => `x${i}`);
+// ABI register names
+const Z16_ABI_REGISTERS = ["t0", "ra", "sp", "s0", "s1", "t1", "a0", "a1"];
 
 const beforeMount: BeforeMount = (monaco) => {
   monaco.languages.register({ id: Z16_LANG });
@@ -66,6 +68,12 @@ const beforeMount: BeforeMount = (monaco) => {
 
         // instructions (case-insensitive)
         [new RegExp(`\\b(${Z16_INSTRUCTIONS.join("|")})\\b`, "i"), "keyword"],
+
+        // ABI register names (t0, ra, sp, etc.)
+        [
+          new RegExp(`\\b(${Z16_ABI_REGISTERS.join("|")})\\b`, "i"),
+          "register.abi",
+        ],
 
         // registers x0…x15
         [new RegExp(`\\b(${Z16_REGISTERS.join("|")})\\b`, "i"), "register"],
@@ -93,7 +101,8 @@ const beforeMount: BeforeMount = (monaco) => {
     rules: [
       { token: "comment", foreground: "10b981", fontStyle: "italic" }, // Bright emerald for comments
       { token: "keyword", foreground: "00ff00", fontStyle: "bold" }, // Bright electric green for keywords
-      { token: "register", foreground: "22c55e" }, // Medium green for registers
+      { token: "register.abi", foreground: "fbbf24", fontStyle: "bold" }, // Golden yellow for ABI registers
+      { token: "register", foreground: "22c55e" }, // Medium green for x registers
       { token: "number.hex", foreground: "84cc16" }, // Lime green for hex numbers
       { token: "number.bin", foreground: "65a30d" }, // Darker lime for binary
       { token: "number", foreground: "a3e635" }, // Light lime for regular numbers
@@ -120,6 +129,7 @@ interface CodeWindowProps {
 }
 
 export function CodeViewer({ className, width }: CodeWindowProps) {
+  const [isExpanded, setIsExpanded] = useState(true);
   const { PC, code, empty } = useSimulatorStore(
     useShallow((s) => ({
       PC: s.pc,
@@ -167,23 +177,65 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
   };
 
   return (
-    <div className="retro-sidebar h-full border-r border-green-500/30 flex flex-col">
-      <div className="p-2 border-b border-green-500/30 flex-shrink-0">
-        <h2 className="text-lg font-semibold text-green-400 font-mono">
-          Assembly Code
-        </h2>
-      </div>
-      <div className="flex-1 min-h-0">
-        <Editor
-          className={className}
-          width={width}
-          defaultLanguage={Z16_LANG}
-          theme={Z16_THEME}
-          beforeMount={beforeMount}
-          onMount={handleMount}
-          value={code || "# Upload a binary file\n# to get started!"}
-        />
-      </div>
+    <div
+      className={`retro-sidebar h-full border-r border-green-500/30 flex flex-col transition-all duration-300 ${
+        isExpanded ? "" : "w-12"
+      }`}
+      style={{ width: isExpanded ? width : 48 }}
+    >
+      {isExpanded ? (
+        <>
+          <div className="p-2 border-b border-green-500/30 flex-shrink-0 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-green-400 font-mono">
+              Assembly Code
+            </h2>
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="text-green-500 hover:text-green-300 transition-colors p-1"
+              title="Hide code editor"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M15.41 16.58L10.83 12L15.41 7.42L14 6L8 12L14 18L15.41 16.58Z" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 min-h-0">
+            <Editor
+              className={className}
+              width={isExpanded ? width : undefined}
+              defaultLanguage={Z16_LANG}
+              theme={Z16_THEME}
+              beforeMount={beforeMount}
+              onMount={handleMount}
+              value={code || "# Upload a binary file\n# to get started!"}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="h-full flex flex-col items-center justify-start pt-4">
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="text-green-500 hover:text-green-300 transition-colors p-2 mb-2"
+            title="Show code editor"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8.59 16.58L13.17 12L8.59 7.42L10 6L16 12L10 18L8.59 16.58Z" />
+            </svg>
+          </button>
+          <div className="writing-mode-vertical text-green-400 font-mono text-xs">
+            <span
+              style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+            >
+              CODE
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

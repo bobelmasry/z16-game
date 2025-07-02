@@ -31,3 +31,19 @@ export const formatRegisterValue = (
       return signedValue.toString(); // Signed decimal
   }
 };
+
+// ABI name mapping
+export const abiNames = {
+  0: "t0",
+  1: "ra",
+  2: "sp",
+  3: "s0",
+  4: "s1",
+  5: "t1",
+  6: "a0",
+  7: "a1",
+};
+
+export const getRegisterName = (index: number) => {
+  return abiNames[index as keyof typeof abiNames] || `x${index}`;
+};
