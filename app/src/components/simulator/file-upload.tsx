@@ -13,7 +13,10 @@ export default function FileUpload() {
   );
   return (
     <div>
-      <Label htmlFor="file-upload" className="block mb-2">
+      <Label
+        htmlFor="file-upload"
+        className="block mb-2 text-lg text-green-400 font-semibold font-mono"
+      >
         Upload Z16 Binary File
       </Label>
       <div className="relative">
@@ -34,7 +37,7 @@ export default function FileUpload() {
           value={fileName || "Choose a file..."}
           placeholder="Choose a file..."
           readOnly
-          className="cursor-pointer"
+          className="retro-terminal-input cursor-pointer bg-black border border-green-500/30 text-green-400 placeholder-green-600/60 font-mono focus:border-green-400 focus:ring-green-400/50"
         />
       </div>
     </div>

@@ -12,15 +12,17 @@ export default function Home() {
   useSimulator();
 
   return (
-    <div className="">
+    <div className="retro-app-background min-h-screen">
       <Controls />
       <div className="flex h-[calc(100vh-3rem)]">
         <CodeViewer width={350} />
-        <div className="flex-1 p-4 overflow-y-auto bg-neutral-800 text-white">
+        <div className="flex-1 p-4 overflow-y-auto retro-main-content">
           <GameDisplay />
+          <div className="h-4"></div>
           <FileUpload />
           <div className="h-4"></div>
           <Registers />
+          <div className="h-4"></div>
           <PcCounter />
           <div className="h-4"></div>
           <Console />

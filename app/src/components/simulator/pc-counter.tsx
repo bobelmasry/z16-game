@@ -6,8 +6,10 @@ export default function PcCounter() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-2">PC</h2>
-      <div className="bg-neutral-700 p-2 rounded">{PC}</div>
+      <h2 className="text-lg font-semibold mb-2 text-green-400">PC</h2>
+      <div className="retro-terminal retro-terminal-glow bg-black border border-green-500/30 p-3 rounded font-mono">
+        <span className="text-green-400 retro-terminal-text">{PC}</span>
+      </div>
     </div>
   );
 }

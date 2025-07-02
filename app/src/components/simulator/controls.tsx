@@ -7,24 +7,27 @@ import { useOperatingSystemStore } from "@/lib/store/os";
 import { Slider } from "../ui/slider";
 
 export default function Controls() {
-  const { reset, step, play, pause, state } = useSimulatorStore(
-    useShallow((s) => ({
-      reset: s.reset,
-      step: s.step,
-      play: s.play,
-      pause: s.pause,
-      state: s.state,
-    }))
-  );
+  const { reset, step, play, pause, state, speed, setSpeed } =
+    useSimulatorStore(
+      useShallow((s) => ({
+        reset: s.reset,
+        step: s.step,
+        play: s.play,
+        pause: s.pause,
+        state: s.state,
+        speed: s.speed,
+        setSpeed: s.setSpeed,
+      }))
+    );
   const fileName = useOperatingSystemStore((s) => s.fileName);
   return (
-    <div className="w-screen h-12 bg-neutral-900 flex items-center justify-between px-4 py-2">
+    <div className="w-screen h-12 retro-header flex items-center justify-between px-4 py-2">
       {/* Simulation Buttons */}
       <div className="flex items-center gap-2">
         <Button
           onClick={reset}
           variant="outline"
-          className="flex items-center gap-2"
+          className="retro-button flex items-center gap-2"
         >
           <RefreshCw className="w-4 h-4" /> Reset
         </Button>
@@ -32,7 +35,7 @@ export default function Controls() {
           <Button
             onClick={pause}
             variant="outline"
-            className="flex items-center gap-2"
+            className="retro-button flex items-center gap-2"
           >
             <Pause className="w-4 h-4" /> Pause
           </Button>
@@ -40,7 +43,7 @@ export default function Controls() {
           <Button
             onClick={play}
             variant="outline"
-            className="flex items-center gap-2"
+            className="retro-button flex items-center gap-2"
             disabled={true}
           >
             <Ban /> Blocked
@@ -49,7 +52,7 @@ export default function Controls() {
           <Button
             onClick={play}
             variant="outline"
-            className="flex items-center gap-2"
+            className="retro-button flex items-center gap-2"
             disabled={state === "halted" || fileName == null}
           >
             <Play className="w-4 h-4" /> Start
@@ -59,7 +62,7 @@ export default function Controls() {
           <Button
             onClick={step}
             variant="outline"
-            className="flex items-center gap-2"
+            className="retro-button flex items-center gap-2"
             disabled={
               state === "halted" || state === "blocked" || fileName == null
             }
@@ -67,23 +70,22 @@ export default function Controls() {
             <StepForward className="w-4 h-4" /> Step
           </Button>
         )}
-        <p className="p-4">Simulation speed: </p>
-        {
-        
-        /* Slider needs to be fixed */
-        
-        }
+        <p className="p-2 text-green-400 font-mono">Simulation speed: </p>
         <Slider
-          defaultValue={[50]}
-          max={100}
+          value={[speed]}
+          max={1000}
+          min={0.5}
           step={1}
-          className="w-40 h-4"
+          className="retro-slider w-40 h-4"
           onValueChange={(value) => {
-            useSimulatorStore.setState({ speed: value[0] });
+            setSpeed(value[0]);
           }}
         />
+        <p className="p-2 text-green-400 font-mono">{speed} Hz</p>
       </div>
-      <h1 className="text-emerald-600 font-bold text-2xl">Zx16 Simulator</h1>
+      <h1 className="text-green-400 font-bold text-2xl font-mono retro-terminal-text">
+        Zx16 Simulator
+      </h1>
     </div>
   );
 }

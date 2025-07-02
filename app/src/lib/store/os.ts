@@ -15,6 +15,7 @@ export interface OperatingSystemStore {
   resolveECall: (value: string) => void;
   handleECall: (service: number) => ECallRequest | void;
   setPendingECall: (ecall: ECallRequest | null) => void;
+  consoleAppend(message: string): void;
   consolePrint(messages: string[]): void;
   consoleClear(): void;
   setFileName: (fileName: string | null) => void;
@@ -77,7 +78,6 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
         }
 
         // Write the new memory and registers back to the simulation store
-        console.log("ECall resolved:", req, "with value:", value);
         simulation.setMemory(memory);
         simulation.setRegisters(registers);
         simulation.resume();
@@ -193,7 +193,8 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           break;
         }
         case 10: // Exit
-          simulation.exit();
+          const exitCode = simulation.registers[6]; // a0
+          simulation.exit(exitCode);
           break;
       }
 
@@ -202,6 +203,18 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
 
     setPendingECall(ecall) {
       set(() => ({ pendingECall: ecall }));
+    },
+
+    consoleAppend(message) {
+      set((state) => ({
+        consoleLog:
+          state.consoleLog.length > 0
+            ? [
+                ...state.consoleLog.slice(0, -1),
+                state.consoleLog[state.consoleLog.length - 1] + message,
+              ]
+            : [message],
+      }));
     },
 
     consolePrint(messages) {

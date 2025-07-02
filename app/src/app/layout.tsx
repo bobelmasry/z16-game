@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.className} ${jetbrainsMono.className} antialiased dark`}
+        className={`${geistSans.className} ${jetbrainsMono.className} antialiased dark retro-app`}
       >
         {children}
       </body>

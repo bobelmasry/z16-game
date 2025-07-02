@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export const formatRegisterValue = (
   value: number,
-  viewMode: "binary" | "hex"
+  viewMode: "binary" | "hex" | "decimal"
 ) => {
   // Use the signed value directly (already sign-extended from signExtend function)
   const signedValue = value;

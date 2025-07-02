@@ -91,18 +91,25 @@ const beforeMount: BeforeMount = (monaco) => {
     base: "vs-dark",
     inherit: true,
     rules: [
-      { token: "comment", foreground: "6a9955", fontStyle: "italic" },
-      { token: "keyword", foreground: "7c9fb8", fontStyle: "bold" },
-      { token: "register", foreground: "d49999" },
-      { token: "number.hex", foreground: "b8d4a8" },
-      { token: "number.bin", foreground: "99d1d4" },
-      { token: "number", foreground: "a8c4d6" },
-      { token: "delimiter", foreground: "d4c899" },
-      { token: "identifier", foreground: "c99dd4" },
-      { token: "white", background: "1e1e1e" },
+      { token: "comment", foreground: "10b981", fontStyle: "italic" }, // Bright emerald for comments
+      { token: "keyword", foreground: "00ff00", fontStyle: "bold" }, // Bright electric green for keywords
+      { token: "register", foreground: "22c55e" }, // Medium green for registers
+      { token: "number.hex", foreground: "84cc16" }, // Lime green for hex numbers
+      { token: "number.bin", foreground: "65a30d" }, // Darker lime for binary
+      { token: "number", foreground: "a3e635" }, // Light lime for regular numbers
+      { token: "delimiter", foreground: "34d399" }, // Emerald for delimiters
+      { token: "identifier", foreground: "059669" }, // Darker emerald for identifiers
+      { token: "white", background: "000000" },
     ],
     colors: {
-      // override editor colors if you like, I don't really want to
+      "editor.background": "#000000",
+      "editor.foreground": "#4ade80", // Default green
+      "editorLineNumber.foreground": "#16a34a", // Darker green for line numbers
+      "editorCursor.foreground": "#00ff00", // Bright green cursor
+      "editor.selectionBackground": "#22c55e40", // Semi-transparent green selection
+      "editorIndentGuide.background": "#16a34a20",
+      "editorWhitespace.foreground": "#16a34a30",
+      "editorLineNumber.activeForeground": "#22c55e", // Brighter green for active line number
     },
   });
 };
@@ -160,14 +167,23 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
   };
 
   return (
-    <Editor
-      className={className}
-      width={width}
-      defaultLanguage={Z16_LANG}
-      theme={Z16_THEME}
-      beforeMount={beforeMount}
-      onMount={handleMount}
-      value={code || "# Upload a binary file\n# to get started!"}
-    />
+    <div className="retro-sidebar h-full border-r border-green-500/30 flex flex-col">
+      <div className="p-2 border-b border-green-500/30 flex-shrink-0">
+        <h2 className="text-lg font-semibold text-green-400 font-mono">
+          Assembly Code
+        </h2>
+      </div>
+      <div className="flex-1 min-h-0">
+        <Editor
+          className={className}
+          width={width}
+          defaultLanguage={Z16_LANG}
+          theme={Z16_THEME}
+          beforeMount={beforeMount}
+          onMount={handleMount}
+          value={code || "# Upload a binary file\n# to get started!"}
+        />
+      </div>
+    </div>
   );
 }
