@@ -15,6 +15,7 @@ export type SimulatorStore = {
   instructions: Instruction[];
   speed: number; // Speed in Hz, e.g., 3 means 3Hz (300ms per step)
   animationFrameId?: number; // For canceling animation frames
+  totalInstructions: number; // Total instructions executed
 
   reset: () => void;
   step: () => void;
@@ -37,6 +38,7 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   fileName: null,
   speed: 3, // Default speed (frequency) is 3, which means 300ms per step
   animationFrameId: undefined,
+  totalInstructions: 0,
 
   reset: () => {
     const { animationFrameId } = get();
@@ -48,6 +50,7 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
       registers: Array(8).fill(0),
       state: "paused",
       animationFrameId: undefined,
+      totalInstructions: 0,
     }));
     useOperatingSystemStore.getState().reset();
   },
@@ -66,6 +69,7 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
         memory: state.memory,
         pc: PC,
       };
+      set(() => ({ totalInstructions: state.totalInstructions + 1 }));
       // If the instruction is an ecall, give control to the OS
       if (instruction.opcode === Opcode.ecall) {
         const os = useOperatingSystemStore.getState();
@@ -163,7 +167,13 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
     set((state) => {
       useOperatingSystemStore
         .getState()
-        .consolePrint(["Program exited with code " + code]);
+        .consolePrint([
+          "Program exited with code " +
+            code +
+            " with " +
+            state.totalInstructions +
+            " instructions executed.",
+        ]);
       return { state: "halted" };
     }),
 
