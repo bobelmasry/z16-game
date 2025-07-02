@@ -1,4 +1,4 @@
-import { signExtend } from "../binary";
+import { signExtend } from "./binary";
 import {
   Instruction,
   Opcode,
@@ -10,7 +10,7 @@ import {
   JTypeInstruction,
   UTypeInstruction,
   ECallInstruction,
-} from "../decoder";
+} from "./decoder";
 
 export interface ExecutionState {
   registers: number[];
@@ -27,16 +27,30 @@ export function executeInstruction(
   const logs: string[] = [];
 
   // Helpers
-  const getByte = (addr: number) => (addr < memory.length ? memory[addr] : 0);
-  const getWord = (addr: number) =>
-    addr + 1 < memory.length ? memory[addr] | (memory[addr + 1] << 8) : 0;
+  const getByte = (addr: number) => {
+    const wordAddr = Math.floor(addr / 2);
+    if (wordAddr >= memory.length) return 0;
+    const word = memory[wordAddr];
+    return addr % 2 === 0 ? word & 0xff : (word >> 8) & 0xff;
+  };
+  const getWord = (addr: number) => {
+    const wordAddr = Math.floor(addr / 2);
+    return wordAddr < memory.length ? memory[wordAddr] : 0;
+  };
   const setByte = (addr: number, value: number) => {
-    if (addr < memory.length) memory[addr] = value & 0xff;
+    const wordAddr = Math.floor(addr / 2);
+    if (wordAddr >= memory.length) return;
+    const word = memory[wordAddr];
+    if (addr % 2 === 0) {
+      memory[wordAddr] = (word & 0xff00) | (value & 0xff);
+    } else {
+      memory[wordAddr] = (word & 0x00ff) | ((value & 0xff) << 8);
+    }
   };
   const setWord = (addr: number, value: number) => {
-    if (addr + 1 < memory.length) {
-      memory[addr] = value & 0xff;
-      memory[addr + 1] = (value >> 8) & 0xff;
+    const wordAddr = Math.floor(addr / 2);
+    if (wordAddr < memory.length) {
+      memory[wordAddr] = value & 0xffff;
     }
   };
 
@@ -53,11 +67,11 @@ export function executeInstruction(
             case 1: // SUB
               registers[rd] -= registers[rs2];
               break;
-            case 4: // JR
+            case 11: // JR
               pc = registers[rd];
               incrementPC = false;
               break;
-            case 8: {
+            case 12: {
               // JALR
               const nextPC = pc + 2;
               pc = registers[rd];
@@ -198,10 +212,10 @@ export function executeInstruction(
       const addr = registers[rs2] + imm;
 
       switch (funct3) {
-        case 0:
+        case 0: // Store Byte
           setByte(addr, registers[rs1]);
           break;
-        case 1:
+        case 1: // Store Word
           setWord(addr, registers[rs1]);
           break;
         default:
@@ -214,15 +228,14 @@ export function executeInstruction(
       const { funct3, rd, rs2, imm: raw4 } = inst;
       let imm = signExtend(raw4, 4);
       const addr = registers[rs2] + imm;
-
       switch (funct3) {
-        case 0:
+        case 0: // LB
           registers[rd] = (getByte(addr) << 24) >> 24;
           break;
-        case 1:
+        case 1: // LW
           registers[rd] = getWord(addr);
           break;
-        case 4:
+        case 4: // LBU
           registers[rd] = getByte(addr) & 0xff;
           break;
         default:

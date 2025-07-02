@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { useSimulatorStore } from "./simulator";
 import { decodeToInstruction } from "../utils/decoder";
-import type { ExecutionState } from "../utils/executor";
+import type { ExecutionState } from "../utils";
 
 type ECallRequest =
   | { type: "readString"; maxLen: number; addr: number }

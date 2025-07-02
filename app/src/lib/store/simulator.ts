@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { Opcode, type Instruction } from "../utils/decoder";
 import { executeInstruction, type ExecutionState } from "../utils/executor";
 import { useOperatingSystemStore } from "./os";
+import { flushSync } from "react-dom";
 
 type SimulatorState = "running" | "paused" | "blocked" | "halted";
 
@@ -13,6 +14,7 @@ export type SimulatorStore = {
   prevState?: SimulatorState;
   instructions: Instruction[];
   speed: number; // Speed in Hz, e.g., 3 means 3Hz (300ms per step)
+  animationFrameId?: number; // For canceling animation frames
 
   reset: () => void;
   step: () => void;
@@ -34,12 +36,18 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   state: "paused",
   fileName: null,
   speed: 3, // Default speed (frequency) is 3, which means 300ms per step
+  animationFrameId: undefined,
 
   reset: () => {
+    const { animationFrameId } = get();
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+    }
     set(() => ({
       pc: 0,
       registers: Array(8).fill(0),
       state: "paused",
+      animationFrameId: undefined,
     }));
     useOperatingSystemStore.getState().reset();
   },
@@ -85,32 +93,70 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
     }),
 
   play: () => {
-    const runNextStep = () => {
-      const { state, step, play, speed } = get();
+    let lastTime = performance.now();
+    const targetInterval = 1000 / get().speed; // ms per instruction
 
-      if (state !== "running") return; // Stop if state changed
-      step(); // Execute a single instruction
+    const runLoop = (currentTime: number) => {
+      const { state, step, speed } = get();
 
-      // Check again if we should continue
-      if (get().state === "running") {
-        const timeout = (1 / speed) * 1000; // Convert frequency to milliseconds
-        setTimeout(runNextStep, timeout); // Continue after delay
+      if (state !== "running") {
+        set({ animationFrameId: undefined });
+        return;
+      }
+
+      const deltaTime = currentTime - lastTime;
+      const currentTargetInterval = 1000 / speed; // Recalculate in case speed changed
+
+      // For high speeds (>60Hz), execute multiple instructions per frame
+      if (speed > 60) {
+        const instructionsToExecute = Math.max(1, Math.floor(speed / 60));
+        for (
+          let i = 0;
+          i < instructionsToExecute && get().state === "running";
+          i++
+        ) {
+          step();
+        }
+        // For very high speeds, don't wait - just continue immediately
+        const frameId = requestAnimationFrame(runLoop);
+        set({ animationFrameId: frameId });
+      } else {
+        // For lower speeds, use time-based execution
+        if (deltaTime >= currentTargetInterval) {
+          step();
+          lastTime = currentTime;
+        }
+        const frameId = requestAnimationFrame(runLoop);
+        set({ animationFrameId: frameId });
       }
     };
 
     set((state) => {
       if (state.state === "running") return state;
-      // Start loop
-      const timeout = (1 / state.speed) * 1000;
-      setTimeout(runNextStep, timeout); // Default speed is 300ms
-      return { state: "running" };
+
+      // Cancel any existing animation frame
+      if (state.animationFrameId) {
+        cancelAnimationFrame(state.animationFrameId);
+      }
+
+      // Start the loop
+      const frameId = requestAnimationFrame(runLoop);
+      return {
+        state: "running",
+        animationFrameId: frameId,
+      };
     });
   },
 
   pause: () => {
-    set((state) => {
-      return { state: "paused" };
-    });
+    const { animationFrameId } = get();
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+    }
+    set(() => ({
+      state: "paused",
+      animationFrameId: undefined,
+    }));
   },
 
   exit: (code: number) =>
