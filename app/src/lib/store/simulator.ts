@@ -18,6 +18,8 @@ export type SimulatorStore = {
   totalInstructions: number; // Total instructions executed
   executionStartTime?: number; // Timestamp when execution started
   executionEndTime?: number; // Timestamp when execution ended
+  audioVolume: number; // Volume for audio playback, if applicable
+  audioPlaying: boolean; // Whether audio is currently playing
 
   reset: () => void;
   step: () => void;
@@ -29,6 +31,8 @@ export type SimulatorStore = {
   setRegisters: (registers: number[]) => void;
   setInstructions: (instructions: Instruction[]) => void;
   setSpeed: (speed: number) => void;
+  setAudioVolume: (volume: number) => void; // Optional method for setting audio volume
+  setAudioPlaying: (isPlaying: boolean) => void; // Optional method for setting audio playing state
 };
 
 export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
@@ -43,6 +47,20 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   totalInstructions: 0,
   executionStartTime: undefined,
   executionEndTime: undefined,
+  audioVolume: 1.0, // Default volume for audio playback
+  audioPlaying: false, // Initial state for audioPlaying
+
+  setAudioVolume: (volume) => {
+    if (volume < 0 || volume > 1) {
+      console.warn("Volume must be between 0 and 1");
+      return;
+    }
+    set(() => ({ audioVolume: volume }));
+  },
+
+  setAudioPlaying: (isPlaying) => {
+    set(() => ({ audioPlaying: isPlaying }));
+  },
 
   reset: () => {
     const { animationFrameId } = get();

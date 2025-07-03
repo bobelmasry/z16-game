@@ -132,6 +132,62 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           get().consolePrint([output]);
           break;
         }
+        case 4: {
+          const frequency = simulation.registers[6]; // a0
+          const duration = simulation.registers[7];  // a1
+
+          if (frequency < 0 || frequency > 65535) {
+            this.consoleAppend("Error: Frequency must be between 0 and 65535.");
+            return;
+          }
+          if (duration < 0 || duration > 65535) {
+            this.consoleAppend("Error: Duration must be between 0 and 65535 milliseconds.");
+            return;
+          }
+
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+
+          // Normalize audioVolume (0–255) to gain (0.0–1.0)
+          const normalizedVolume = Math.max(0, Math.min(simulation.audioVolume, 255)) / 255;
+          gainNode.gain.setValueAtTime(normalizedVolume, audioCtx.currentTime);
+
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+
+          oscillator.start();
+          simulation.setAudioPlaying(true);
+          this.consoleAppend(`Playing tone: ${frequency} Hz for ${duration} ms at volume ${simulation.audioVolume}/255`,);
+
+          setTimeout(() => {
+            oscillator.stop();
+            simulation.setAudioPlaying(false);
+            this.consoleAppend("Tone finished.");
+          }, duration);
+
+          break;
+        }
+          case 5: {
+            // Set audio volume, a0 = volume (0-255)
+            const volume = simulation.registers[6]; // x6 is a0
+            if (volume < 0 || volume > 255) {
+              this.consoleAppend("Error: Volume must be between 0 and 255.");
+            }
+            simulation.setAudioVolume(volume);
+            break;
+          }
+        case 6: {
+          // Stop audio playback
+          simulation.setAudioPlaying(false);
+          break;
+        }
+        case 7: {
+          // Read the keyboard, a0 = keycode, a1 = 1 if a key is pressed, 0 if not
+          break;
+        }
         // TODO: Implement from 4...7
         case 8: {
           // registers dump, print all registers to console
