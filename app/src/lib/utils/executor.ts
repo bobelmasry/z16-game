@@ -23,7 +23,7 @@ export function executeInstruction(
 ): ExecutionState {
   let { registers, memory, pc } = state;
   let incrementPC = true;
-
+  let bit16_ones = 0xffff;
   // Optimized helpers with reduced overhead
   const getByte = (addr: number) => {
     const wordAddr = Math.floor(addr / 2);
@@ -91,7 +91,10 @@ export function executeInstruction(
               registers[rd] <<= registers[rs2];
               break;
             case 5: // SRL
+              bit16_ones >>>= registers[rs2];
               registers[rd] >>>= registers[rs2];
+              registers[rd] &= bit16_ones;
+              bit16_ones = 0xffff;
               break;
             case 6: // SRA
               registers[rd] >>= registers[rs2];
@@ -138,7 +141,13 @@ export function executeInstruction(
           const shamt = imm & 0x0f;
           const mode = (imm >> 4) & 0b111;
           if (mode === 1) registers[rd] <<= shamt; // SLLI
-          else if (mode === 2) registers[rd] >>>= shamt; // SRLI
+          else if (mode === 2) {
+            bit16_ones >>>= shamt;
+            registers[rd] >>>= shamt;
+            registers[rd] &= bit16_ones;
+            bit16_ones = 0xffff;
+
+          } // SRLI
           else if (mode === 4) registers[rd] >>= shamt; // SRAI
           else {
             // Unknown shift instruction - skip silently for performance
