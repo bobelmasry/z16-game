@@ -40,8 +40,6 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
   private registers: Uint16Array = new Uint16Array(8); // 8 registers (x0 to x7) (16-bit each)
   private _pc: Uint16Array = new Uint16Array(1); // Program Counter starts at 0
   private speed: number = 3; // Default frequency (3 Hz)
-  private lastUpdateTs = 0;
-  private readonly minFrameMs = 1000 / 60; // ~16.7ms
   private state: SimulatorState = "paused";
   private prevState: SimulatorState = "paused";
   private totalInstructions: number = 0; // Total instructions executed
@@ -88,16 +86,21 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
     this.pressedKeys.delete(key);
   }
 
+  setState(state: SimulatorState): void {
+    this.state = state;
+    this.emit("update", this.state);
+  }
+
   reset(): void {
     this.pc = 0;
     this.registers.fill(0);
-    this.state = "paused";
+    this.setState("paused");
     this.totalInstructions = 0;
   }
 
   pause(): void {
     if (this.state === "running") {
-      this.state = "paused";
+      this.setState("paused");
     }
   }
 
@@ -105,16 +108,28 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
     this.executeInstruction();
 
     if (this.state === "halted" || this.state === "blocked") {
-      this.emit("update", this.state);
       return false; // Step execution ended
     }
     return true;
   }
 
+  async spinSleep(ms: number) {
+    const end = performance.now() + ms;
+    // Do small slices of busy work, then yield
+    while (performance.now() < end && this.state === "running") {
+      // busy work chunk
+      const sliceEnd = performance.now() + 0.2; // 0.2 ms chunks
+      while (performance.now() < sliceEnd) {}
+      // yield to event loop so onmessage can run
+      await Promise.resolve();
+    }
+  }
+
   async start() {
     if (this.state === "running") return;
-    this.state = "running";
+    this.setState("running");
 
+    // @ts-ignore
     while (this.state === "running") {
       if (!this.step()) break;
       await sleep(1000 / this.speed);
@@ -129,7 +144,7 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
     if (this.prevState === "running") {
       this.start();
     } else {
-      this.state = "paused";
+      this.setState("paused");
     }
   }
 
@@ -137,14 +152,14 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
     this.totalInstructions++;
     // Check bounds of PC
     if (this.pc < 0 || this.pc >= this.instructions.length) {
-      this.state = "halted";
+      this.setState("halted");
       return;
     }
 
     const instructionLocation = Math.floor(this.pc / 2);
     const instruction = this.instructions.at(instructionLocation);
     if (!instruction) {
-      this.state = "halted";
+      this.setState("halted");
       return;
     }
 
@@ -404,7 +419,7 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
           case ECALLService.ReadInteger:
             // These services block execution until input is provided
             this.prevState = this.state; // Save previous state before blocking
-            this.state = "blocked";
+            this.setState("blocked");
             return;
           case ECALLService.ReadKeyboard: {
             const keyCode = this.registers[6]; // a0
@@ -417,7 +432,7 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
             break;
           }
           case ECALLService.ProgramExit:
-            this.state = "halted";
+            this.setState("halted");
             this.emit("exit", {
               code: this.registers[6],
               totalInstructions: this.totalInstructions,

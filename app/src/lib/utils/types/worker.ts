@@ -1,8 +1,4 @@
-import type {
-  ECallRequest,
-  ExitEvent,
-  SimulatorSnapshot,
-} from "@/lib/simulator";
+import type { ECallRequest, ExitEvent } from "@/lib/simulator";
 import type { SimulatorState } from ".";
 
 export type WorkerEventData =
@@ -27,7 +23,6 @@ export type WorkerEventResponse =
       };
     }
   | { command: "ecall"; payload: ECallRequest }
-  | { command: "update"; payload: SimulatorSnapshot }
   | { command: "memory"; payload: Uint16Array }
   | { command: "debug"; payload: any }
   | { command: "update"; payload: SimulatorState }

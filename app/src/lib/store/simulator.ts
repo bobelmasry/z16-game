@@ -28,6 +28,7 @@ export type SimulatorStore = {
   sendToWorker: (message: WorkerEventData) => void;
   updateRegisters: (registers: Uint16Array) => void;
   setTotalInstructions: (total: number) => void;
+  setState: (state: SimulatorState) => void; // Set the simulator state
 };
 
 export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
@@ -86,4 +87,6 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   },
 
   setTotalInstructions: (total) => set(() => ({ totalInstructions: total })),
+
+  setState: (state) => set(() => ({ state })),
 }));

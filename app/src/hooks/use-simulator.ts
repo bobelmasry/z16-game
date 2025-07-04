@@ -11,6 +11,7 @@ export let sharedPC: Uint16Array;
 export function useSimulator() {
   const setWorker = useSimulatorStore((s) => s.setWorker);
   const setTotalInstructions = useSimulatorStore((s) => s.setTotalInstructions);
+  const setState = useSimulatorStore((s) => s.setState);
   const handleECall = useOperatingSystemStore((s) => s.handleECall);
   const consolePrint = useOperatingSystemStore((s) => s.consolePrint);
   const rafRef = useRef<number>(null);
@@ -33,6 +34,9 @@ export function useSimulator() {
           consolePrint([
             "Instructions executed: " + data.payload.totalInstructions,
           ]);
+          break;
+        case "update":
+          setState(data.payload);
           break;
         case "ecall":
           handleECall(
