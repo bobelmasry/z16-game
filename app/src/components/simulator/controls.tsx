@@ -5,6 +5,7 @@ import { useSimulatorStore } from "@/lib/store/simulator";
 import { useShallow } from "zustand/shallow";
 import { useOperatingSystemStore } from "@/lib/store/os";
 import { Slider } from "../ui/slider";
+import { SimulatorState } from "@/lib/utils/types";
 
 export default function Controls() {
   const { reset, step, start, pause, state, speed, setSpeed } =
@@ -31,7 +32,7 @@ export default function Controls() {
         >
           <RefreshCw className="w-4 h-4" /> Reset
         </Button>
-        {state == "running" ? (
+        {state == SimulatorState.Running ? (
           <Button
             onClick={pause}
             variant="outline"
@@ -39,7 +40,7 @@ export default function Controls() {
           >
             <Pause className="w-4 h-4" /> Pause
           </Button>
-        ) : state === "blocked" ? (
+        ) : state === SimulatorState.Blocked ? (
           <Button
             onClick={start}
             variant="outline"
@@ -53,18 +54,20 @@ export default function Controls() {
             onClick={start}
             variant="outline"
             className="retro-button flex items-center gap-2"
-            disabled={state === "halted" || fileName == null}
+            disabled={state === SimulatorState.Halted || fileName == null}
           >
             <Play className="w-4 h-4" /> Start
           </Button>
         )}
-        {state !== "running" && (
+        {state !== SimulatorState.Running && (
           <Button
             onClick={step}
             variant="outline"
             className="retro-button flex items-center gap-2"
             disabled={
-              state === "halted" || state === "blocked" || fileName == null
+              state === SimulatorState.Halted ||
+              state === SimulatorState.Blocked ||
+              fileName == null
             }
           >
             <StepForward className="w-4 h-4" /> Step

@@ -13,7 +13,7 @@ import {
 } from "./utils/types/instruction";
 import { EventEmitter } from "./utils/event-emitter";
 import { generateInstructions } from "./utils/decoder";
-import type { SimulatorState } from "./utils/types";
+import { SimulatorState } from "./utils/types";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -39,9 +39,9 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
   private memory: Uint16Array; // 64KB memory
   private registers: Uint16Array = new Uint16Array(8); // 8 registers (x0 to x7) (16-bit each)
   private _pc: Uint16Array = new Uint16Array(1); // Program Counter starts at 0
-  private speed: number = 3; // Default frequency (3 Hz)
-  private state: SimulatorState = "paused";
-  private prevState: SimulatorState = "paused";
+  speed: number = 3; // Default frequency (3 Hz)
+  state: SimulatorState = SimulatorState.Paused;
+  prevState: SimulatorState = SimulatorState.Paused;
   private totalInstructions: number = 0; // Total instructions executed
   private pressedKeys: Set<string> = new Set(); // Track pressed keys for ecall
 
@@ -63,9 +63,8 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
     this._pc[0] = value;
   }
 
-  load(memory: Uint16Array): void {
+  load(): void {
     this.reset();
-    this.memory.set(memory);
     this.instructions = generateInstructions(this.memory);
   }
 
@@ -88,78 +87,45 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
 
   setState(state: SimulatorState): void {
     this.state = state;
-    this.emit("update", this.state);
   }
 
   reset(): void {
     this.pc = 0;
     this.registers.fill(0);
-    this.setState("paused");
+    this.setState(SimulatorState.Paused);
     this.totalInstructions = 0;
   }
 
   pause(): void {
-    if (this.state === "running") {
-      this.setState("paused");
+    if (this.state === SimulatorState.Running) {
+      this.setState(SimulatorState.Paused);
     }
   }
 
   step(): boolean {
     this.executeInstruction();
 
-    if (this.state === "halted" || this.state === "blocked") {
+    if (
+      this.state === SimulatorState.Halted ||
+      this.state === SimulatorState.Blocked
+    ) {
       return false; // Step execution ended
     }
     return true;
-  }
-
-  async spinSleep(ms: number) {
-    const end = performance.now() + ms;
-    // Do small slices of busy work, then yield
-    while (performance.now() < end && this.state === "running") {
-      // busy work chunk
-      const sliceEnd = performance.now() + 0.2; // 0.2 ms chunks
-      while (performance.now() < sliceEnd) {}
-      // yield to event loop so onmessage can run
-      await Promise.resolve();
-    }
-  }
-
-  async start() {
-    if (this.state === "running") return;
-    this.setState("running");
-
-    // @ts-ignore
-    while (this.state === "running") {
-      if (!this.step()) break;
-      await sleep(1000 / this.speed);
-    }
-  }
-
-  resume(): void {
-    if (this.state !== "blocked") return; // Only resume if blocked
-    this.pc += 2; // Move to the next instruction
-    // if we were running, go back into the run loop;
-    // otherwise just emit an update so the UI redraws
-    if (this.prevState === "running") {
-      this.start();
-    } else {
-      this.setState("paused");
-    }
   }
 
   executeInstruction(): void {
     this.totalInstructions++;
     // Check bounds of PC
     if (this.pc < 0 || this.pc >= this.instructions.length) {
-      this.setState("halted");
+      this.setState(SimulatorState.Halted);
       return;
     }
 
     const instructionLocation = Math.floor(this.pc / 2);
     const instruction = this.instructions.at(instructionLocation);
     if (!instruction) {
-      this.setState("halted");
+      this.setState(SimulatorState.Halted);
       return;
     }
 
@@ -411,15 +377,16 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
       case Opcode.ECall: {
         this.emit("ecall", {
           service: instruction.service,
-          registers: this.registers,
-          memory: this.memory,
+          // take a copy of the memory and registers
+          registers: new Uint16Array(this.registers),
+          memory: new Uint16Array(this.memory),
         });
         switch (instruction.service) {
           case ECALLService.ReadString:
           case ECALLService.ReadInteger:
             // These services block execution until input is provided
             this.prevState = this.state; // Save previous state before blocking
-            this.setState("blocked");
+            this.setState(SimulatorState.Blocked);
             return;
           case ECALLService.ReadKeyboard: {
             const keyCode = this.registers[6]; // a0
@@ -432,7 +399,7 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
             break;
           }
           case ECALLService.ProgramExit:
-            this.setState("halted");
+            this.setState(SimulatorState.Halted);
             this.emit("exit", {
               code: this.registers[6],
               totalInstructions: this.totalInstructions,

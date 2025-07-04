@@ -3,10 +3,14 @@ import { useSimulatorStore } from "@/lib/store/simulator";
 import type { WorkerEventResponse } from "@/lib/utils/types/worker";
 import { useOperatingSystemStore } from "@/lib/store/os";
 import { ECALLService } from "@/lib/utils/types/instruction";
+import { Command, SimulatorState } from "@/lib/utils/types";
+import { sendCommand } from "@/lib/utils/command";
 
 export let sharedMemory: Uint16Array;
 export let sharedRegisters: Uint16Array;
 export let sharedPC: Uint16Array;
+export let sharedControl: Uint16Array;
+export let sharedEvent: Uint16Array;
 
 export function useSimulator() {
   const setWorker = useSimulatorStore((s) => s.setWorker);
@@ -28,15 +32,15 @@ export function useSimulator() {
           sharedMemory = new Uint16Array(data.payload.sharedBuffer);
           sharedRegisters = new Uint16Array(data.payload.sharedRegistersBuffer);
           sharedPC = new Uint16Array(data.payload.sharedPCBuffer);
+          sharedControl = new Uint16Array(data.payload.sharedControlBuffer);
+          sharedEvent = new Uint16Array(data.payload.sharedEventBuffer);
           break;
         case "exit":
+          setState(SimulatorState.Halted);
           setTotalInstructions(data.payload.totalInstructions);
           consolePrint([
             "Instructions executed: " + data.payload.totalInstructions,
           ]);
-          break;
-        case "update":
-          setState(data.payload);
           break;
         case "ecall":
           handleECall(
@@ -50,18 +54,12 @@ export function useSimulator() {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key.length === 1) {
-        worker.postMessage({
-          command: "keyDown",
-          payload: event.key,
-        });
+        sendCommand(Command.KEY_DOWN, event.key.charCodeAt(0));
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.key.length === 1) {
-        worker.postMessage({
-          command: "keyUp",
-          payload: event.key,
-        });
+        sendCommand(Command.KEY_UP, event.key.charCodeAt(0));
       }
     };
     window.addEventListener("keydown", onKeyDown);

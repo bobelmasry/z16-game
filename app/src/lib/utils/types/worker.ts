@@ -20,6 +20,8 @@ export type WorkerEventResponse =
         sharedBuffer: SharedArrayBuffer;
         sharedRegistersBuffer: SharedArrayBuffer;
         sharedPCBuffer: SharedArrayBuffer;
+        sharedControlBuffer: SharedArrayBuffer;
+        sharedEventBuffer: SharedArrayBuffer;
       };
     }
   | { command: "ecall"; payload: ECallRequest }

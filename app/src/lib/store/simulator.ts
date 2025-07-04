@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import type { Instruction } from "../utils/types/instruction";
 import { generateInstructions } from "../utils/decoder";
-import type { SimulatorState } from "../utils/types";
+import { Command, SimulatorState } from "../utils/types";
 import type { WorkerEventData } from "../utils/types/worker";
 import { useOperatingSystemStore } from "./os";
+import { sharedMemory, sharedRegisters } from "@/hooks/use-simulator";
+import { sendCommand } from "../utils/command";
 
 export type SimulatorStore = {
   memory: Uint16Array;
@@ -22,53 +24,60 @@ export type SimulatorStore = {
   pause: () => void;
   resume: () => void; // Resume from blocked state
 
-  loadMemory: (memory: Uint16Array<ArrayBuffer>) => void; // Set memory and generate instructions
   setSpeed: (speed: number) => void;
   setWorker: (worker: Worker) => void;
   sendToWorker: (message: WorkerEventData) => void;
-  updateRegisters: (registers: Uint16Array) => void;
   setTotalInstructions: (total: number) => void;
   setState: (state: SimulatorState) => void; // Set the simulator state
+
+  updateRegisters: (registers: Uint16Array) => void;
+  loadMemory: (memory: Uint16Array<ArrayBuffer>) => void; // Set memory and generate instructions
 };
 
 export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   memory: new Uint16Array(65536), // Initialize with 64 KB of memory
   pc: 0,
   registers: new Uint16Array(8), // 8 registers, each 16 bits
-  state: "paused",
+  state: SimulatorState.Paused,
   speed: 3, // Default speed (frequency) is 3, which means 300ms per step
   instructions: [], // Initialize with an empty array
   totalInstructions: 0,
 
   reset: () => {
     useOperatingSystemStore.getState().reset();
-    get().sendToWorker({ command: "reset" });
+    sendCommand(Command.RESET);
+    set({ state: SimulatorState.Paused });
   },
 
   step: () => {
-    get().sendToWorker({ command: "step" });
+    sendCommand(Command.STEP);
   },
 
   start: () => {
-    get().sendToWorker({ command: "start" });
+    sendCommand(Command.START);
+    // Optionally, you can also set the state to Running
+    set({ state: SimulatorState.Running });
   },
 
   pause: () => {
-    get().sendToWorker({ command: "pause" });
+    sendCommand(Command.PAUSE);
+    // Optionally, you can also set the state to Paused
+    set(() => ({ state: SimulatorState.Paused }));
   },
 
   resume() {
-    get().sendToWorker({ command: "resume" });
+    sendCommand(Command.RESUME);
   },
 
   loadMemory: (memory) => {
+    sharedMemory.set(memory);
+    sendCommand(Command.LOAD);
     set({ instructions: generateInstructions(memory) });
-    get().sendToWorker({ command: "load", payload: memory });
   },
 
   setSpeed: (speed) => {
+    sendCommand(Command.SET_SPEED, speed);
     set(() => ({ speed }));
-    get().sendToWorker({ command: "setSpeed", payload: speed });
   },
 
   setWorker: (worker) => set(() => ({ worker })),
@@ -83,7 +92,7 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   },
 
   updateRegisters: (registers) => {
-    get().sendToWorker({ command: "updateRegisters", payload: registers });
+    sharedRegisters.set(registers);
   },
 
   setTotalInstructions: (total) => set(() => ({ totalInstructions: total })),

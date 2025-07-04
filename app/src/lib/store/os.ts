@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { useSimulatorStore } from "./simulator";
 import { sharedMemory } from "@/hooks/use-simulator";
+import { SimulatorState } from "../utils/types";
 
 type ECallRequest =
   | { type: "readString"; maxLen: number; addr: number }
@@ -86,12 +87,11 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
     },
 
     handleECall(service, registers, memory) {
-      const simulation = useSimulatorStore.getState();
       switch (service) {
         case 1: {
           // Read String
-          const addr = simulation.registers[6]; // a0
-          const maxLen = simulation.registers[7]; // a1
+          const addr = registers[6]; // a0
+          const maxLen = registers[7]; // a1
           set(() => ({
             pendingECall: {
               type: "readString",
@@ -99,6 +99,7 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
               addr,
             },
           }));
+          useSimulatorStore.getState().setState(SimulatorState.Blocked); // Block the simulator
           return;
         }
         case 2: {
@@ -106,6 +107,7 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           set(() => ({
             pendingECall: { type: "readInt" },
           }));
+          useSimulatorStore.getState().setState(SimulatorState.Blocked); // Block the simulator
           return;
         }
         case 3: {
