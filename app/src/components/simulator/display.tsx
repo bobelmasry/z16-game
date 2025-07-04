@@ -6,7 +6,6 @@ const TILE_MAP_ADDR = 0xF000;
 const TILE_SET_ADDR = 0xF200;
 const PALETTE_ADDR = 0xFA00;
 
-const TILE_SIZE = 16;
 const SCREEN_WIDTH_TILES = 20;
 const SCREEN_HEIGHT_TILES = 15;
 
@@ -32,7 +31,7 @@ export default function GameDisplay() {
       <h2 className="text-lg font-semibold mb-2 text-green-400 font-mono">
         Display
       </h2>
-      <div className="w-[640px] h-[480px] grid grid-cols-20 grid-rows-15 gap-0">
+      <div className="w-[320px] h-[240px] grid grid-cols-20 grid-rows-15 gap-0">
         {Array.from({ length: SCREEN_WIDTH_TILES * SCREEN_HEIGHT_TILES }).map((_, index) => {
           const tileIndex = memory[TILE_MAP_ADDR + index]; // 0–15
           const tilePixelData = new Uint8Array(
@@ -66,14 +65,14 @@ function Tile({ tileBytes, colors }: { tileBytes: Uint8Array; colors: string[] }
   }
 
   return (
-    <div className="grid grid-cols-16 grid-rows-16 w-[32px] h-[32px]">
+    <div className="grid grid-cols-16 grid-rows-16 w-[16px] h-[16px]">
       {pixels.map((color, i) => (
         <div
           key={i}
           style={{ backgroundColor: color }}
-          className="w-[2px] h-[2px]"
-        />
-      ))}
+          className="w-[1px] h-[1px]"
+          />
+        ))}
     </div>
   );
 }
