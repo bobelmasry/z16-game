@@ -8,12 +8,14 @@ import PcCounter from "@/components/simulator/pc-counter";
 import Console from "@/components/simulator/console";
 import { PerformanceDebugger } from "@/components/simulator/performance-debugger";
 import { useSimulator } from "@/hooks/use-simulator";
+import KeyboardListener from "@/lib/utils/keyboardListener";
 
 export default function Home() {
   useSimulator();
 
   return (
     <div className="retro-app-background min-h-screen">
+      <KeyboardListener />
       <Controls />
       <div className="flex h-[calc(100vh-3rem)]">
         <CodeViewer width={350} />

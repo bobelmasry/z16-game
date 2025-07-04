@@ -20,6 +20,7 @@ export type SimulatorStore = {
   executionEndTime?: number; // Timestamp when execution ended
   audioVolume: number; // Volume for audio playback, if applicable
   audioPlaying: boolean; // Whether audio is currently playing
+  currentKey:string | null; // Currently pressed key, if any
 
   reset: () => void;
   step: () => void;
@@ -31,8 +32,9 @@ export type SimulatorStore = {
   setRegisters: (registers: number[]) => void;
   setInstructions: (instructions: Instruction[]) => void;
   setSpeed: (speed: number) => void;
-  setAudioVolume: (volume: number) => void; // Optional method for setting audio volume
-  setAudioPlaying: (isPlaying: boolean) => void; // Optional method for setting audio playing state
+  setAudioVolume: (volume: number) => void; // method for setting audio volume
+  setAudioPlaying: (isPlaying: boolean) => void; // method for setting audio playing state
+  setCurrentKey: (key: string | null) => void; // Method to set the currently pressed key
 };
 
 export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
@@ -49,6 +51,11 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   executionEndTime: undefined,
   audioVolume: 1.0, // Default volume for audio playback
   audioPlaying: false, // Initial state for audioPlaying
+  currentKey: null, // Initially no key is pressed
+
+  setCurrentKey: (key) => {
+    set(() => ({ currentKey: key }));
+  },
 
   setAudioVolume: (volume) => {
     if (volume < 0 || volume > 1) {

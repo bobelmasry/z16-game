@@ -185,10 +185,19 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           break;
         }
         case 7: {
-          // Read the keyboard, a0 = keycode, a1 = 1 if a key is pressed, 0 if not
+          // Keyboard read syscall
+          const newRegisters = [...simulation.registers];
+          if (simulation.currentKey) {
+            newRegisters[6] = simulation.currentKey.charCodeAt(0); // a0 = keycode
+            newRegisters[7] = 1;                         // a1 = key is pressed
+          } else {
+            newRegisters[6] = 0;                         // a0 = no key
+            newRegisters[7] = 0;                         // a1 = key not pressed
+          }
+          simulation.setRegisters(newRegisters);
           break;
         }
-        // TODO: Implement from 4...7
+
         case 8: {
           // registers dump, print all registers to console
           const output = simulation.registers
