@@ -1,6 +1,6 @@
 "use client";
 import { useSimulatorStore } from "@/lib/store/simulator";
-import { decodeToString } from "@/lib/utils/decoder";
+import { InstructionEncoder } from "@/lib/utils/encoder";
 import Editor, { OnMount, BeforeMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import { useEffect, useRef, useState } from "react";
@@ -133,7 +133,7 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
   const { PC, code, empty } = useSimulatorStore(
     useShallow((s) => ({
       PC: s.pc,
-      code: s.instructions.map((inst) => decodeToString(inst)).join("\n"),
+      code: new InstructionEncoder(s.instructions).encodeInstructions(),
       empty: s.instructions.length === 0,
     }))
   );

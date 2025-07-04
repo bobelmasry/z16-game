@@ -7,12 +7,12 @@ import { useOperatingSystemStore } from "@/lib/store/os";
 import { Slider } from "../ui/slider";
 
 export default function Controls() {
-  const { reset, step, play, pause, state, speed, setSpeed } =
+  const { reset, step, start, pause, state, speed, setSpeed } =
     useSimulatorStore(
       useShallow((s) => ({
         reset: s.reset,
         step: s.step,
-        play: s.play,
+        start: s.start,
         pause: s.pause,
         state: s.state,
         speed: s.speed,
@@ -41,7 +41,7 @@ export default function Controls() {
           </Button>
         ) : state === "blocked" ? (
           <Button
-            onClick={play}
+            onClick={start}
             variant="outline"
             className="retro-button flex items-center gap-2"
             disabled={true}
@@ -50,7 +50,7 @@ export default function Controls() {
           </Button>
         ) : (
           <Button
-            onClick={play}
+            onClick={start}
             variant="outline"
             className="retro-button flex items-center gap-2"
             disabled={state === "halted" || fileName == null}
@@ -73,7 +73,7 @@ export default function Controls() {
         <p className="p-2 text-green-400 font-mono">Simulation speed: </p>
         <Slider
           value={[speed]}
-          max={500}
+          max={2000}
           min={0.5}
           step={1}
           className="retro-slider w-40 h-4"

@@ -77,7 +77,7 @@ export default function Registers() {
         </ToggleGroup>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {registers.map((value, index) => (
+        {[...registers].map((value, index) => (
           <div
             key={index}
             className="retro-terminal retro-terminal-glow bg-black border border-green-500/30 p-3 rounded font-mono"
