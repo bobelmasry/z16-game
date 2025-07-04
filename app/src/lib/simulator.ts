@@ -17,30 +17,28 @@ import type { SimulatorState } from "./utils/types";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export interface SimulatorSnapshot {
-  pc: number;
-  registers: Uint16Array;
-  state: SimulatorState;
-  totalInstructions: number;
-}
-
 export interface ECallRequest {
   service: ECALLService;
   registers: Uint16Array;
   memory: Uint16Array;
 }
 
+export interface ExitEvent {
+  code: number;
+  totalInstructions: number;
+}
+
 interface SimulatorEvents {
+  update: [SimulatorState];
   ecall: [ECallRequest];
-  update: [SimulatorSnapshot];
-  exit: [];
+  exit: [ExitEvent];
 }
 
 export class Simulator extends EventEmitter<SimulatorEvents> {
   private instructions: Instruction[] = []; // Array of instructions to execute
   private memory: Uint16Array; // 64KB memory
   private registers: Uint16Array = new Uint16Array(8); // 8 registers (x0 to x7) (16-bit each)
-  private pc: number = 0; // Program Counter starts at 0
+  private _pc: Uint16Array = new Uint16Array(1); // Program Counter starts at 0
   private speed: number = 3; // Default frequency (3 Hz)
   private lastUpdateTs = 0;
   private readonly minFrameMs = 1000 / 60; // ~16.7ms
@@ -48,15 +46,23 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
   private prevState: SimulatorState = "paused";
   private totalInstructions: number = 0; // Total instructions executed
   private pressedKeys: Set<string> = new Set(); // Track pressed keys for ecall
-  // Timing control
-  private lastInstructionTime = 0;
-  private instructionInterval = 1000 / 3; // ms per instruction (default 3 Hz)
-  private animationFrameId: number | null = null;
-  private accumulatedTime = 0;
 
-  constructor(sharedBuf: SharedArrayBuffer) {
+  constructor(
+    sharedMemoryBuf: SharedArrayBuffer,
+    sharedRegistersBuf: SharedArrayBuffer,
+    sharedPCBuf: SharedArrayBuffer
+  ) {
     super();
-    this.memory = new Uint16Array(sharedBuf);
+    this.memory = new Uint16Array(sharedMemoryBuf);
+    this.registers = new Uint16Array(sharedRegistersBuf);
+    this._pc = new Uint16Array(sharedPCBuf); // Initialize PC from shared buffer
+  }
+
+  get pc(): number {
+    return this._pc[0];
+  }
+  set pc(value: number) {
+    this._pc[0] = value;
   }
 
   load(memory: Uint16Array): void {
@@ -71,24 +77,6 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
 
   updateRegisters(registers: Uint16Array): void {
     this.registers.set(registers);
-    this.emit("update", this.getState());
-  }
-
-  getState(): SimulatorSnapshot {
-    return {
-      pc: this.pc,
-      registers: this.registers,
-      state: this.state,
-      totalInstructions: this.totalInstructions,
-    };
-  }
-
-  maybeEmitUpdate() {
-    const now = performance.now();
-    if (now - this.lastUpdateTs >= this.minFrameMs) {
-      this.lastUpdateTs = now;
-      this.emit("update", this.getState());
-    }
   }
 
   keyDown(key: string): void {
@@ -105,111 +93,31 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
     this.registers.fill(0);
     this.state = "paused";
     this.totalInstructions = 0;
-    this.accumulatedTime = 0;
-    this.lastInstructionTime = 0;
-    if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-    this.emit("update", this.getState());
   }
 
   pause(): void {
     if (this.state === "running") {
       this.state = "paused";
-      if (this.animationFrameId !== null) {
-        cancelAnimationFrame(this.animationFrameId);
-        this.animationFrameId = null;
-      }
     }
-    this.emit("update", this.getState());
   }
 
-  step(forceUpdate = false): boolean {
+  step(): boolean {
     this.executeInstruction();
 
-    if (forceUpdate) this.emit("update", this.getState());
-    else this.maybeEmitUpdate();
-
     if (this.state === "halted" || this.state === "blocked") {
-      this.emit("exit");
-
+      this.emit("update", this.state);
       return false; // Step execution ended
     }
     return true;
   }
 
-  start(): void {
+  async start() {
     if (this.state === "running") return;
     this.state = "running";
-    this.lastInstructionTime = performance.now();
-    this.accumulatedTime = 0;
-
-    // Use different strategies based on speed
-    if (this.speed > 60) {
-      // For high speeds, use a tight loop with periodic yielding
-      this.runHighSpeed();
-    } else {
-      // For lower speeds, use requestAnimationFrame
-      this.runNormalSpeed();
-    }
-  }
-
-  private runNormalSpeed(): void {
-    const frame = (currentTime: number) => {
-      this.instructionInterval = 1000 / this.speed; // Update interval based on speed
-      if (this.state !== "running") return;
-
-      const deltaTime = currentTime - this.lastInstructionTime;
-      this.lastInstructionTime = currentTime;
-      this.accumulatedTime += deltaTime;
-
-      // Execute instructions based on accumulated time
-      const instructionsToExecute = Math.floor(
-        this.accumulatedTime / this.instructionInterval
-      );
-      this.accumulatedTime -= instructionsToExecute * this.instructionInterval;
-
-      for (let i = 0; i < instructionsToExecute; i++) {
-        if (!this.step()) {
-          return; // Simulation ended
-        }
-        if (this.state !== "running") {
-          return; // State changed (blocked, paused, etc.)
-        }
-      }
-
-      this.animationFrameId = requestAnimationFrame(frame);
-    };
-
-    this.animationFrameId = requestAnimationFrame(frame);
-  }
-
-  private async runHighSpeed(): Promise<void> {
-    const instructionsPerBatch = Math.min(Math.floor(this.speed / 60), 1000);
-    const batchInterval = (instructionsPerBatch / this.speed) * 1000;
 
     while (this.state === "running") {
-      const batchStart = performance.now();
-
-      for (let i = 0; i < instructionsPerBatch; i++) {
-        if (!this.step()) {
-          return; // Simulation ended
-        }
-        if (this.state !== "running") {
-          return; // State changed
-        }
-      }
-
-      const batchDuration = performance.now() - batchStart;
-      const sleepTime = Math.max(0, batchInterval - batchDuration);
-
-      if (sleepTime > 0) {
-        await new Promise((resolve) => setTimeout(resolve, sleepTime));
-      } else {
-        // Yield to prevent blocking
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
+      if (!this.step()) break;
+      await sleep(1000 / this.speed);
     }
   }
 
@@ -222,7 +130,6 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
       this.start();
     } else {
       this.state = "paused";
-      this.emit("update", this.getState());
     }
   }
 
@@ -511,7 +418,10 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
           }
           case ECALLService.ProgramExit:
             this.state = "halted";
-            this.emit("update", this.getState());
+            this.emit("exit", {
+              code: this.registers[6],
+              totalInstructions: this.totalInstructions,
+            });
             return;
         }
         break;

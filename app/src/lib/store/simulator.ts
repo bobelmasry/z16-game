@@ -3,9 +3,10 @@ import type { Instruction } from "../utils/types/instruction";
 import { generateInstructions } from "../utils/decoder";
 import type { SimulatorState } from "../utils/types";
 import type { WorkerEventData } from "../utils/types/worker";
-import type { SimulatorSnapshot } from "../simulator";
+import { useOperatingSystemStore } from "./os";
 
 export type SimulatorStore = {
+  memory: Uint16Array;
   pc: number;
   registers: Uint16Array;
   state: SimulatorState;
@@ -25,11 +26,12 @@ export type SimulatorStore = {
   setSpeed: (speed: number) => void;
   setWorker: (worker: Worker) => void;
   sendToWorker: (message: WorkerEventData) => void;
-  saveSnapshot: (snapshot: SimulatorSnapshot) => void;
   updateRegisters: (registers: Uint16Array) => void;
+  setTotalInstructions: (total: number) => void;
 };
 
 export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
+  memory: new Uint16Array(65536), // Initialize with 64 KB of memory
   pc: 0,
   registers: new Uint16Array(8), // 8 registers, each 16 bits
   state: "paused",
@@ -38,6 +40,7 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   totalInstructions: 0,
 
   reset: () => {
+    useOperatingSystemStore.getState().reset();
     get().sendToWorker({ command: "reset" });
   },
 
@@ -78,16 +81,9 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
     }
   },
 
-  saveSnapshot(snapshot) {
-    set(() => ({
-      pc: snapshot.pc,
-      registers: snapshot.registers,
-      state: snapshot.state,
-      totalInstructions: snapshot.totalInstructions,
-    }));
-  },
-
   updateRegisters: (registers) => {
     get().sendToWorker({ command: "updateRegisters", payload: registers });
   },
+
+  setTotalInstructions: (total) => set(() => ({ totalInstructions: total })),
 }));

@@ -5,10 +5,20 @@ import type {
 } from "./utils/types/worker";
 
 const MEMORY_SIZE = 65536; // words
-const BYTES_PER_WORD = 2;
-const sharedMemoryBuf = new SharedArrayBuffer(MEMORY_SIZE * BYTES_PER_WORD);
+const REGISTERS_SIZE = 8; // 8 registers, each 16 bits
+const sharedMemoryBuf = new SharedArrayBuffer(
+  MEMORY_SIZE * Uint16Array.BYTES_PER_ELEMENT
+);
+const sharedRegistersBuf = new SharedArrayBuffer(
+  REGISTERS_SIZE * Uint16Array.BYTES_PER_ELEMENT
+);
+const sharedPCBuf = new SharedArrayBuffer(Uint16Array.BYTES_PER_ELEMENT);
 
-const simulator = new Simulator(sharedMemoryBuf);
+const simulator = new Simulator(
+  sharedMemoryBuf,
+  sharedRegistersBuf,
+  sharedPCBuf
+);
 
 (function () {
   // Initialize the simulator with the shared buffer, which allows
@@ -17,6 +27,8 @@ const simulator = new Simulator(sharedMemoryBuf);
     command: "init",
     payload: {
       sharedBuffer: sharedMemoryBuf,
+      sharedRegistersBuffer: sharedRegistersBuf,
+      sharedPCBuffer: sharedPCBuf,
     },
   } satisfies WorkerEventResponse);
 
@@ -34,7 +46,7 @@ const simulator = new Simulator(sharedMemoryBuf);
         simulator.pause();
         break;
       case "step":
-        simulator.step(true);
+        simulator.step();
         break;
       case "reset":
         simulator.reset();
@@ -63,6 +75,20 @@ const simulator = new Simulator(sharedMemoryBuf);
     self.postMessage({
       command: "ecall",
       payload: request,
+    } satisfies WorkerEventResponse);
+  });
+
+  simulator.on("exit", (event) => {
+    self.postMessage({
+      command: "exit",
+      payload: event,
+    } satisfies WorkerEventResponse);
+  });
+
+  simulator.on("update", (state) => {
+    self.postMessage({
+      command: "update",
+      payload: state,
     } satisfies WorkerEventResponse);
   });
 })();

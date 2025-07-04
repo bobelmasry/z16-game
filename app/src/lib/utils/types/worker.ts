@@ -1,4 +1,9 @@
-import type { ECallRequest, SimulatorSnapshot } from "@/lib/simulator";
+import type {
+  ECallRequest,
+  ExitEvent,
+  SimulatorSnapshot,
+} from "@/lib/simulator";
+import type { SimulatorState } from ".";
 
 export type WorkerEventData =
   | { command: "load"; payload: Uint16Array }
@@ -13,8 +18,17 @@ export type WorkerEventData =
   | { command: "keyUp"; payload: string };
 
 export type WorkerEventResponse =
-  | { command: "init"; payload: { sharedBuffer: SharedArrayBuffer } }
+  | {
+      command: "init";
+      payload: {
+        sharedBuffer: SharedArrayBuffer;
+        sharedRegistersBuffer: SharedArrayBuffer;
+        sharedPCBuffer: SharedArrayBuffer;
+      };
+    }
   | { command: "ecall"; payload: ECallRequest }
   | { command: "update"; payload: SimulatorSnapshot }
   | { command: "memory"; payload: Uint16Array }
-  | { command: "debug"; payload: any };
+  | { command: "debug"; payload: any }
+  | { command: "update"; payload: SimulatorState }
+  | { command: "exit"; payload: ExitEvent };

@@ -248,10 +248,7 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
         }
         case 10: {
           // Exit the program
-          get().consolePrint([
-            "Exiting program with code " + registers[6],
-            "Executed " + simulation.totalInstructions + " instructions.",
-          ]);
+          get().consolePrint(["Exiting program with code " + registers[6]]);
           return;
         }
       }
