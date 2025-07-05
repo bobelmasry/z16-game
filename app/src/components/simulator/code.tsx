@@ -1,6 +1,7 @@
 "use client";
+import { BUFS } from "@/hooks/use-simulator";
 import { useSimulatorStore } from "@/lib/store/simulator";
-import { decodeToString } from "@/lib/utils/decoder";
+import { InstructionEncoder } from "@/lib/utils/encoder";
 import Editor, { OnMount, BeforeMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import { useEffect, useRef, useState } from "react";
@@ -130,10 +131,9 @@ interface CodeWindowProps {
 
 export function CodeViewer({ className, width }: CodeWindowProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const { PC, code, empty } = useSimulatorStore(
+  const { code, empty } = useSimulatorStore(
     useShallow((s) => ({
-      PC: s.pc,
-      code: s.instructions.map((inst) => decodeToString(inst)).join("\n"),
+      code: new InstructionEncoder(s.instructions).encodeInstructions(),
       empty: s.instructions.length === 0,
     }))
   );
@@ -141,12 +141,12 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
   const monacoRef = useRef<typeof monaco | null>(null);
   const decorationsRef = useRef<string[]>([]);
 
-  const updateHighlight = () => {
+  const updateHighlight = (pc: number) => {
     const editor = editorRef.current;
     const mon = monacoRef.current;
     if (!editor || !mon) return;
 
-    const lineNum = Math.ceil((PC + 1) / 2);
+    const lineNum = Math.ceil((pc + 1) / 2);
     decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
       {
         range: new mon.Range(lineNum, 1, lineNum, 1),
@@ -157,8 +157,16 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
   };
 
   useEffect(() => {
-    if (!empty) updateHighlight();
-  }, [PC, empty]);
+    if (empty) return;
+    const view = new Uint16Array(BUFS.pc);
+    let rafId: number;
+    const update = () => {
+      updateHighlight(view[0]);
+      rafId = requestAnimationFrame(update);
+    };
+    update();
+    return () => cancelAnimationFrame(rafId);
+  }, [empty]);
 
   const handleMount: OnMount = (editor, mon) => {
     editorRef.current = editor;
@@ -173,7 +181,7 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
       overviewRulerLanes: 0,
       overviewRulerBorder: false,
     });
-    if (!empty) updateHighlight();
+    if (!empty) updateHighlight(0);
   };
 
   return (

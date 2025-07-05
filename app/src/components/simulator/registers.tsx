@@ -1,17 +1,18 @@
 "use client";
-import { Switch } from "@/components/ui/switch";
-import { useSimulatorStore } from "@/lib/store/simulator";
+import { useEffect, useRef, useState } from "react";
 import { abiNames, formatRegisterValue } from "@/lib/utils";
 import { signExtend } from "@/lib/utils/binary";
-import { useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
-import { Binary, Bold, Italic, Underline } from "lucide-react";
+import { BUFS } from "@/hooks/use-simulator";
 
 export default function Registers() {
-  const registers = useSimulatorStore((s) => s.registers);
   const [viewMode, setViewMode] = useState<"hex" | "binary" | "decimal">("hex");
   const [nameMode, setNameMode] = useState<"register" | "abi">("abi");
 
+  // Refs for each register's text span
+  const spanRefs = useRef<HTMLSpanElement[]>([]);
+
+  // Helper to get register name
   const getRegisterName = (index: number) => {
     if (nameMode === "abi") {
       return abiNames[index as keyof typeof abiNames] || `x${index}`;
@@ -19,18 +20,40 @@ export default function Registers() {
     return `x${index}`;
   };
 
+  // Imperative update loop using requestAnimationFrame
+  useEffect(() => {
+    const view = new Uint16Array(BUFS.registers);
+    let rafId: number;
+    const update = () => {
+      for (let i = 0; i < view.length; i++) {
+        const span = spanRefs.current[i];
+        if (span) {
+          // sign-extend 16-bit then format
+          const val = signExtend(view[i], 16);
+          span.textContent = formatRegisterValue(val, viewMode);
+        }
+      }
+      rafId = requestAnimationFrame(update);
+    };
+    update();
+    return () => cancelAnimationFrame(rafId);
+  }, [viewMode]);
+
+  // Number of registers
+  const registerCount = 8;
+
   return (
     <div>
+      {/* Controls */}
       <div className="flex items-center mb-2 flex-wrap gap-2">
         <h2 className="text-lg font-semibold text-green-400 font-mono">
           Registers
         </h2>
-
-        {/* Register Name Toggle */}
+        {/* Name toggle */}
         <ToggleGroup
           type="single"
           variant="outline"
-          onValueChange={(value) => setNameMode(value as any)}
+          onValueChange={(val) => setNameMode(val as any)}
           value={nameMode}
           className="flex items-center border border-green-500/30 rounded bg-black/50"
         >
@@ -38,21 +61,20 @@ export default function Registers() {
             value="register"
             className="text-green-400 border-green-500/30 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-300 hover:bg-green-500/10"
           >
-            <p>REG</p>
+            REG
           </ToggleGroupItem>
           <ToggleGroupItem
             value="abi"
             className="text-green-400 border-green-500/30 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-300 hover:bg-green-500/10"
           >
-            <p>ABI</p>
+            ABI
           </ToggleGroupItem>
         </ToggleGroup>
-
-        {/* Value Format Toggle */}
+        {/* Format toggle */}
         <ToggleGroup
           type="single"
           variant="outline"
-          onValueChange={(value) => setViewMode(value as any)}
+          onValueChange={(val) => setViewMode(val as any)}
           value={viewMode}
           className="flex items-center border border-green-500/30 rounded bg-black/50"
         >
@@ -60,31 +82,37 @@ export default function Registers() {
             value="hex"
             className="text-green-400 border-green-500/30 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-300 hover:bg-green-500/10"
           >
-            <p>HEX</p>
+            HEX
           </ToggleGroupItem>
           <ToggleGroupItem
             value="binary"
             className="text-green-400 border-green-500/30 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-300 hover:bg-green-500/10"
           >
-            <p>BIN</p>
+            BIN
           </ToggleGroupItem>
           <ToggleGroupItem
             value="decimal"
             className="text-green-400 border-green-500/30 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-300 hover:bg-green-500/10"
           >
-            <p>DEC</p>
+            DEC
           </ToggleGroupItem>
         </ToggleGroup>
       </div>
+
+      {/* Register grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {registers.map((value, index) => (
+        {Array.from({ length: registerCount }).map((_, idx) => (
           <div
-            key={index}
+            key={idx}
             className="retro-terminal retro-terminal-glow bg-black border border-green-500/30 p-3 rounded font-mono"
           >
-            <span className="text-green-400 retro-terminal-text">
-              {getRegisterName(index)}:{" "}
-              {formatRegisterValue(signExtend(value, 16), viewMode)}
+            <span
+              ref={(el) => {
+                if (el) spanRefs.current[idx] = el;
+              }}
+              className="text-green-400 retro-terminal-text"
+            >
+              {getRegisterName(idx)}: {/* initial value overwritten by loop */}
             </span>
           </div>
         ))}

@@ -6,16 +6,13 @@ import GameDisplay from "@/components/simulator/display";
 import FileUpload from "@/components/simulator/file-upload";
 import PcCounter from "@/components/simulator/pc-counter";
 import Console from "@/components/simulator/console";
-import { PerformanceDebugger } from "@/components/simulator/performance-debugger";
 import { useSimulator } from "@/hooks/use-simulator";
-import KeyboardListener from "@/lib/utils/keyboardListener";
 
 export default function Home() {
   useSimulator();
 
   return (
     <div className="retro-app-background min-h-screen">
-      <KeyboardListener />
       <Controls />
       <div className="flex h-[calc(100vh-3rem)]">
         <CodeViewer width={350} />
@@ -43,7 +40,6 @@ export default function Home() {
             <div className="h-4"></div>
           </div>
 
-          <PerformanceDebugger />
           <div className="h-4"></div>
           <Console />
         </div>

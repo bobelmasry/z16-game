@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { useSimulatorStore } from "./simulator";
-import { decodeToInstruction } from "../utils/decoder";
+import { Command, SimulatorState } from "../utils/types";
+import { sendCommand } from "../utils/command";
+import { BUFS } from "@/hooks/use-simulator";
 
 type ECallRequest =
   | { type: "readString"; maxLen: number; addr: number }
@@ -12,10 +14,17 @@ export interface OperatingSystemStore {
   pendingECall: ECallRequest | null;
 
   resolveECall: (value: string) => void;
-  handleECall: (service: number) => ECallRequest | void;
+  handleECall: (
+    service: number,
+    registers: Uint16Array,
+    memory: Uint16Array
+  ) => void;
   setPendingECall: (ecall: ECallRequest | null) => void;
+  // Appends to the last line of the console log
   consoleAppend(message: string): void;
+  // Prints messages to the console log, each message on a new line
   consolePrint(messages: string[]): void;
+  // Clears the console log
   consoleClear(): void;
   setFileName: (fileName: string | null) => void;
   handleFileChange: (file: File) => void;
@@ -29,93 +38,85 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
     consoleLog: [],
 
     resolveECall(value: string) {
-      // TODO: Check bounds of the value if necessary
-      set((state) => {
-        const req = state.pendingECall;
-        if (!req) return state;
+      const req = get().pendingECall;
+      if (!req) return;
 
-        const simulation = useSimulatorStore.getState();
-        const memory = simulation.memory;
-        const registers = simulation.registers;
+      const registers = new Uint16Array(BUFS.registers);
+      const memory = new Uint16Array(BUFS.memory);
 
-        switch (req.type) {
-          case "readString": {
-            const { addr, maxLen } = req;
-            let totalBytesToWrite = Math.min(value.length, maxLen - 1); // leave space for null terminator
-            let bytePos = 0;
-
-            for (let i = 0; i < totalBytesToWrite; i++) {
-              const charCode = value.charCodeAt(i);
-              const wordIndex = Math.floor((addr + i) / 2);
-              const byteOffset = (addr + i) % 2;
-
-              if (byteOffset === 0) {
-                memory[wordIndex] =
-                  (memory[wordIndex] & 0xff00) | (charCode & 0xff); // write to lower byte
-              } else {
-                memory[wordIndex] =
-                  (memory[wordIndex] & 0x00ff) | ((charCode & 0xff) << 8); // upper byte
-              }
-              bytePos++;
-            }
-
-            // Null-terminate
-            const nullIndex = Math.floor((addr + bytePos) / 2);
-            const nullOffset = (addr + bytePos) % 2;
-            if (nullOffset === 0) {
-              memory[nullIndex] = memory[nullIndex] & 0xff00; // clear lower byte
+      switch (req.type) {
+        case "readString": {
+          const { addr, maxLen } = req;
+          let totalBytesToWrite = Math.min(value.length, maxLen - 1); // leave space for null terminator
+          let bytePos = 0;
+          for (let i = 0; i < totalBytesToWrite; i++) {
+            const charCode = value.charCodeAt(i);
+            const wordIndex = Math.floor((addr + i) / 2);
+            const byteOffset = (addr + i) % 2;
+            if (byteOffset === 0) {
+              memory[wordIndex] =
+                (memory[wordIndex] & 0xff00) | (charCode & 0xff); // write to lower byte
             } else {
-              memory[nullIndex] = memory[nullIndex] & 0x00ff; // clear upper byte
+              memory[wordIndex] =
+                (memory[wordIndex] & 0x00ff) | ((charCode & 0xff) << 8); // upper byte
             }
-
-            registers[6] = bytePos; // set a0 to length of actual string (excluding null terminator)
-            break;
+            bytePos++;
           }
-          case "readInt":
-            registers[6] = parseInt(value, 10); // set a0 to the integer value
-            break;
+          // Null-terminate
+          const nullIndex = Math.floor((addr + bytePos) / 2);
+          const nullOffset = (addr + bytePos) % 2;
+          if (nullOffset === 0) {
+            memory[nullIndex] = memory[nullIndex] & 0xff00; // clear lower byte
+          } else {
+            memory[nullIndex] = memory[nullIndex] & 0x00ff; // clear upper byte
+          }
+          registers[6] = bytePos; // set a0 to length of actual string (excluding null terminator)
+          break;
         }
+        case "readInt":
+          registers[6] = parseInt(value, 10); // set a0 to the integer value
+          break;
+      }
 
-        // Write the new memory and registers back to the simulation store
-        simulation.setMemory(memory);
-        simulation.setRegisters(registers);
-        simulation.resume();
+      // Resume the worker
+      sendCommand(Command.RESUME);
 
-        // Clear the pending ecall
-        return {
-          pendingECall: null,
-        };
+      set({
+        pendingECall: null,
       });
     },
 
-    handleECall(service) {
-      const simulation = useSimulatorStore.getState();
+    handleECall(service, registers, memory) {
       switch (service) {
         case 1: {
           // Read String
-          const addr = simulation.registers[6]; // a0
-          const maxLen = simulation.registers[7]; // a1
-          const ecallRequest: ECallRequest = {
-            type: "readString",
-            maxLen,
-            addr,
-          };
-          return ecallRequest;
+          const addr = registers[6]; // a0
+          const maxLen = registers[7]; // a1
+          set(() => ({
+            pendingECall: {
+              type: "readString",
+              maxLen,
+              addr,
+            },
+          }));
+          return;
         }
         case 2: {
           // Read Integer
-          const ecallRequest: ECallRequest = { type: "readInt" };
-          return ecallRequest;
+          set(() => ({
+            pendingECall: { type: "readInt" },
+          }));
+          return;
         }
         case 3: {
           // Print String
-          const byteOffset = simulation.registers[6] % 2; // start at lower (0) or upper (1) byte
-          const startWord = Math.floor(simulation.registers[6] / 2); // word index
+          const byteOffset = registers[6] % 2; // start at lower (0) or upper (1) byte
+          const startWord = Math.floor(registers[6] / 2); // word index
           let done = false;
           let output = "";
           let first = true;
-          for (let i = startWord; i < simulation.memory.length; i++) {
-            const memoryWord = simulation.memory[i];
+          for (let i = startWord; i < memory.length; i++) {
+            const memoryWord = memory[i];
             const startByte = first ? byteOffset : 0;
             first = false;
             for (let k = startByte; k < 2; k++) {
@@ -133,24 +134,28 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           break;
         }
         case 4: {
-          const frequency = simulation.registers[6]; // a0
-          const duration = simulation.registers[7];  // a1
+          const frequency = registers[6]; // a0
+          const duration = registers[7]; // a1
 
           if (frequency < 0 || frequency > 65535) {
             this.consoleAppend("Error: Frequency must be between 0 and 65535.");
             return;
           }
           if (duration < 0 || duration > 65535) {
-            this.consoleAppend("Error: Duration must be between 0 and 65535 milliseconds.");
+            this.consoleAppend(
+              "Error: Duration must be between 0 and 65535 milliseconds."
+            );
             return;
           }
 
-          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const audioCtx = new (window.AudioContext ||
+            (window as any).webkitAudioContext)();
           const oscillator = audioCtx.createOscillator();
           const gainNode = audioCtx.createGain();
 
           // Normalize audioVolume (0–255) to gain (0.0–1.0)
-          const normalizedVolume = Math.max(0, Math.min(simulation.audioVolume, 255)) / 255;
+          // TODO: Have audioVolume in the simulation store
+          const normalizedVolume = Math.max(0, Math.min(255, 255)) / 255;
           gainNode.gain.setValueAtTime(normalizedVolume, audioCtx.currentTime);
 
           oscillator.type = "sine";
@@ -159,48 +164,32 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           gainNode.connect(audioCtx.destination);
 
           oscillator.start();
-          simulation.setAudioPlaying(true);
-          this.consoleAppend(`Playing tone: ${frequency} Hz for ${duration} ms at volume ${simulation.audioVolume}/255`,);
+          this.consoleAppend(
+            `Playing tone: ${frequency} Hz for ${duration} ms at volume ${255}/255`
+          );
 
           setTimeout(() => {
             oscillator.stop();
-            simulation.setAudioPlaying(false);
             this.consoleAppend("Tone finished.");
           }, duration);
 
           break;
         }
-          case 5: {
-            // Set audio volume, a0 = volume (0-255)
-            const volume = simulation.registers[6]; // x6 is a0
-            if (volume < 0 || volume > 255) {
-              this.consoleAppend("Error: Volume must be between 0 and 255.");
-            }
-            simulation.setAudioVolume(volume);
-            break;
+        case 5: {
+          // Set audio volume, a0 = volume (0-255)
+          const volume = registers[6]; // x6 is a0
+          if (volume < 0 || volume > 255) {
+            this.consoleAppend("Error: Volume must be between 0 and 255.");
           }
+          break;
+        }
         case 6: {
           // Stop audio playback
-          simulation.setAudioPlaying(false);
           break;
         }
-        case 7: {
-          // Keyboard read syscall
-          const newRegisters = [...simulation.registers];
-          if (simulation.currentKey) {
-            newRegisters[6] = simulation.currentKey.charCodeAt(0); // a0 = keycode
-            newRegisters[7] = 1;                         // a1 = key is pressed
-          } else {
-            newRegisters[6] = 0;                         // a0 = no key
-            newRegisters[7] = 0;                         // a1 = key not pressed
-          }
-          simulation.setRegisters(newRegisters);
-          break;
-        }
-
         case 8: {
           // registers dump, print all registers to console
-          const output = simulation.registers
+          const output = [...registers]
             .map(
               (value, index) => `x${index}: ${value} (0x${value.toString(16)})`
             )
@@ -211,9 +200,9 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
         }
         case 9: {
           // memory dump
-          const startAddress = Math.floor(simulation.registers[6] / 2); // x6 is a0
-          let length = Math.ceil(simulation.registers[7] / 2); // x7 is a1
-          const skipFirstByte = (simulation.registers[6] / 2) % 1 !== 0;
+          const startAddress = Math.floor(registers[6] / 2); // x6 is a0
+          let length = Math.ceil(registers[7] / 2); // x7 is a1
+          const skipFirstByte = (registers[6] / 2) % 1 !== 0;
           length += skipFirstByte ? 1 : 0; // Adjust length if skipping first byte
 
           const printByte = (byte: number | null) =>
@@ -226,7 +215,7 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
 
           const output: string[] = [];
           for (let i = startAddress; i < startAddress + length; i++) {
-            const memoryWord = simulation.memory[i];
+            const memoryWord = memory[i];
             const byte1 = memoryWord & 0xff; // Get first byte
             const byte2 = (memoryWord >> 8) & 0xff; // Get second byte
             const bytes: (number | null)[] = [byte1, byte2];
@@ -250,15 +239,18 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           get().consolePrint([
             `Memory Dump from 0x${(startAddress * 2)
               .toString(16)
-              .padStart(4, "0")} (${simulation.registers[7]} bytes):`,
+              .padStart(4, "0")} (${registers[7]} bytes):`,
             ...output,
           ]);
 
           break;
         }
-        case 10: // Exit
-          const exitCode = simulation.registers[6]; // a0
-          simulation.exit(exitCode);
+        case 10: {
+          // Exit the program
+          get().consolePrint(["Exiting program with code " + registers[6]]);
+          return;
+        }
+        default:
           break;
       }
 
@@ -266,7 +258,7 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
     },
 
     setPendingECall(ecall) {
-      set(() => ({ pendingECall: ecall }));
+      set({ pendingECall: ecall });
     },
 
     consoleAppend(message) {
@@ -300,14 +292,12 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
       reader.addEventListener("load", () => {
         const arrayBuffer = reader.result as ArrayBuffer;
         const binary = new Uint16Array(arrayBuffer);
-        simulationStore.setMemory(binary); // Store the binary data in memory
-        simulationStore.setInstructions(
-          Array.from(binary).map((value) => decodeToInstruction(value))
-        );
+        simulationStore.loadMemory(binary);
         get().setFileName(file.name);
       });
       reader.readAsArrayBuffer(file);
     },
+
     reset() {
       set(() => ({
         consoleLog: [],
