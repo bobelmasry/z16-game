@@ -30,7 +30,10 @@ export default function Registers() {
         if (span) {
           // sign-extend 16-bit then format
           const val = signExtend(view[i], 16);
-          span.textContent = formatRegisterValue(val, viewMode);
+          span.textContent = `${getRegisterName(i)}: ${formatRegisterValue(
+            val,
+            viewMode
+          )}`;
         }
       }
       rafId = requestAnimationFrame(update);

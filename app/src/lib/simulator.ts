@@ -394,9 +394,9 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
             const keyCode = this.registers[6]; // a0
             const key = String.fromCharCode(keyCode);
             if (this.pressedKeys.has(key)) {
-              this.registers[7] = 1; // Echo back the key code
+              this.registers[6] = 1; // Echo back the key code
             } else {
-              this.registers[7] = 0; // No key pressed
+              this.registers[6] = 0; // No key pressed
             }
             break;
           }
