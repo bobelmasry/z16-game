@@ -77,7 +77,7 @@ export default function Controls() {
         <Slider
           value={[speed]}
           max={2000}
-          min={0.5}
+          min={1}
           step={1}
           className="retro-slider w-40 h-4"
           onValueChange={(value) => {

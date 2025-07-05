@@ -15,8 +15,6 @@ import { EventEmitter } from "./utils/event-emitter";
 import { generateInstructions } from "./utils/decoder";
 import { SimulatorState } from "./utils/types";
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export interface ECallRequest {
   service: ECALLService;
   registers: Uint16Array;
@@ -39,11 +37,12 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
   private memory: Uint16Array; // 64KB memory
   private registers: Uint16Array = new Uint16Array(8); // 8 registers (x0 to x7) (16-bit each)
   private _pc: Uint16Array = new Uint16Array(1); // Program Counter starts at 0
+  private totalInstructions: number = 0; // Total instructions executed
+  private pressedKeys: Set<string> = new Set(); // Track pressed keys for ecall
+
   speed: number = 3; // Default frequency (3 Hz)
   state: SimulatorState = SimulatorState.Paused;
   prevState: SimulatorState = SimulatorState.Paused;
-  private totalInstructions: number = 0; // Total instructions executed
-  private pressedKeys: Set<string> = new Set(); // Track pressed keys for ecall
 
   constructor(
     sharedMemoryBuf: SharedArrayBuffer,
@@ -72,10 +71,6 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
     this.speed = frequency;
   }
 
-  updateRegisters(registers: Uint16Array): void {
-    this.registers.set(registers);
-  }
-
   keyDown(key: string): void {
     if (this.pressedKeys.has(key)) return; // Ignore repeated key presses
     this.pressedKeys.add(key);
@@ -85,20 +80,16 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
     this.pressedKeys.delete(key);
   }
 
-  setState(state: SimulatorState): void {
-    this.state = state;
-  }
-
   reset(): void {
     this.pc = 0;
     this.registers.fill(0);
-    this.setState(SimulatorState.Paused);
+    this.state = SimulatorState.Paused;
     this.totalInstructions = 0;
   }
 
   pause(): void {
     if (this.state === SimulatorState.Running) {
-      this.setState(SimulatorState.Paused);
+      this.state = SimulatorState.Paused;
     }
   }
 
@@ -114,18 +105,18 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
     return true;
   }
 
-  executeInstruction(): void {
+  private executeInstruction(): void {
     this.totalInstructions++;
     // Check bounds of PC
     if (this.pc < 0 || this.pc >= this.instructions.length) {
-      this.setState(SimulatorState.Halted);
+      this.state = SimulatorState.Halted;
       return;
     }
 
     const instructionLocation = Math.floor(this.pc / 2);
     const instruction = this.instructions.at(instructionLocation);
     if (!instruction) {
-      this.setState(SimulatorState.Halted);
+      this.state = SimulatorState.Halted;
       return;
     }
 
@@ -386,7 +377,7 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
           case ECALLService.ReadInteger:
             // These services block execution until input is provided
             this.prevState = this.state; // Save previous state before blocking
-            this.setState(SimulatorState.Blocked);
+            this.state = SimulatorState.Blocked;
             return;
           case ECALLService.ReadKeyboard: {
             const keyCode = this.registers[6]; // a0
@@ -399,7 +390,7 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
             break;
           }
           case ECALLService.ProgramExit:
-            this.setState(SimulatorState.Halted);
+            this.state = SimulatorState.Halted;
             this.emit("exit", {
               code: this.registers[6],
               totalInstructions: this.totalInstructions,

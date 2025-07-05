@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { useSimulatorStore } from "./simulator";
-import { sharedMemory } from "@/hooks/use-simulator";
-import { SimulatorState } from "../utils/types";
+import { Command, SimulatorState } from "../utils/types";
+import { sendCommand } from "../utils/command";
+import { BUFS } from "@/hooks/use-simulator";
 
 type ECallRequest =
   | { type: "readString"; maxLen: number; addr: number }
@@ -40,8 +41,8 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
       const req = get().pendingECall;
       if (!req) return;
 
-      const simulation = useSimulatorStore.getState();
-      const registers = simulation.registers;
+      const registers = new Uint16Array(BUFS.registers);
+      const memory = new Uint16Array(BUFS.memory);
 
       switch (req.type) {
         case "readString": {
@@ -53,11 +54,11 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
             const wordIndex = Math.floor((addr + i) / 2);
             const byteOffset = (addr + i) % 2;
             if (byteOffset === 0) {
-              sharedMemory[wordIndex] =
-                (sharedMemory[wordIndex] & 0xff00) | (charCode & 0xff); // write to lower byte
+              memory[wordIndex] =
+                (memory[wordIndex] & 0xff00) | (charCode & 0xff); // write to lower byte
             } else {
-              sharedMemory[wordIndex] =
-                (sharedMemory[wordIndex] & 0x00ff) | ((charCode & 0xff) << 8); // upper byte
+              memory[wordIndex] =
+                (memory[wordIndex] & 0x00ff) | ((charCode & 0xff) << 8); // upper byte
             }
             bytePos++;
           }
@@ -65,9 +66,9 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           const nullIndex = Math.floor((addr + bytePos) / 2);
           const nullOffset = (addr + bytePos) % 2;
           if (nullOffset === 0) {
-            sharedMemory[nullIndex] = sharedMemory[nullIndex] & 0xff00; // clear lower byte
+            memory[nullIndex] = memory[nullIndex] & 0xff00; // clear lower byte
           } else {
-            sharedMemory[nullIndex] = sharedMemory[nullIndex] & 0x00ff; // clear upper byte
+            memory[nullIndex] = memory[nullIndex] & 0x00ff; // clear upper byte
           }
           registers[6] = bytePos; // set a0 to length of actual string (excluding null terminator)
           break;
@@ -77,9 +78,8 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           break;
       }
 
-      // Update Simulator state and resume execution
-      simulation.updateRegisters(registers);
-      simulation.resume();
+      // Resume the worker
+      sendCommand(Command.RESUME);
 
       set({
         pendingECall: null,

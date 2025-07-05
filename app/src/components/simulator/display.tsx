@@ -1,118 +1,120 @@
 import { Button } from "@/components/ui/button";
-import { useSimulatorStore } from "@/lib/store/simulator";
+import { BUFS } from "@/hooks/use-simulator";
 import { cn } from "@/lib/utils";
 import { Power } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
-/**
- * ZX16 Display Component
- *
- * Props:
- *   - className?: string
- *   - memory?: Uint16Array (word-addressed, 2 bytes per element)
- */
 const Screen = memo(({ className }: { className?: string }) => {
-  const memory = useSimulatorStore((s) => s.memory);
+  // — pull in your SharedArrayBuffer and wrap it
+  const memory = useRef(new Uint16Array(BUFS.memory)).current;
+
   const [screenOn, setScreenOn] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imageDataRef = useRef<ImageData | null>(null);
 
-  /**
-   * Read a byte from a word-addressed buffer
-   * @param addr byte address
-   * @returns 0–255 value
-   */
-  const readByte = (addr: number): number => {
-    const word = memory[addr >> 1] ?? 0;
-    return (addr & 1) === 0 ? word & 0xff : (word >> 8) & 0xff;
+  // offscreen atlas & ImageData, created once
+  const sheetRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<ImageData>(null);
+
+  // helper to read a byte from the word-array
+  const readByte = (addr: number) => {
+    const w = memory[addr >> 1] || 0;
+    return (addr & 1) === 0 ? w & 0xff : (w >> 8) & 0xff;
   };
 
-  // Build 16-color palette from RGB332 at 0xFA00
-  const palette = useMemo(() => {
-    const cols: { r: number; g: number; b: number }[] = [];
-    const base = 0xfa00;
-    for (let i = 0; i < 16; i++) {
-      const byte = readByte(base + i);
-      const r = Math.ceil(((byte >> 5) & 0x07) * 36.4);
-      const g = Math.ceil(((byte >> 2) & 0x07) * 36.4);
-      const b = (byte & 0x03) * 85;
-      cols.push({ r, g, b });
-    }
-    return cols;
-  }, [memory]);
-
-  // Decode tile graphics: 16 tiles, each 16×16 pixels, two pixels per byte
-  const tileDefinitions = useMemo(() => {
-    const tiles: Uint8Array[] = new Array(16);
-    const tilesBase = 0xf200;
-    for (let t = 0; t < 16; t++) {
-      const arr = new Uint8Array(256);
-      const baseAddr = tilesBase + t * 128;
-      for (let row = 0; row < 16; row++) {
-        for (let col = 0; col < 16; col += 2) {
-          const byteIdx = row * 8 + col / 2;
-          const byte = readByte(baseAddr + byteIdx);
-          arr[row * 16 + col] = byte & 0x0f;
-          arr[row * 16 + col + 1] = (byte >> 4) & 0x0f;
-        }
-      }
-      tiles[t] = arr;
-    }
-    return tiles;
-  }, [memory]);
-
-  // Load tile map (20×15 = 300 bytes at 0xF000): each byte = one tile index (0–15)
-  const tileMap = useMemo(() => {
-    const map = new Uint8Array(300);
-    const mapBase = 0xf000;
-    for (let i = 0; i < 300; i++) {
-      map[i] = readByte(mapBase + i) & 0x0f;
-    }
-    return map;
-  }, [memory]);
-
-  // Render to canvas
+  // set up offscreen canvas + ImageData on client
   useEffect(() => {
+    if (typeof document === "undefined") return;
+    const sheet = document.createElement("canvas");
+    sheet.width = 16 * 16;
+    sheet.height = 16;
+    sheetRef.current = sheet;
+
+    const ctx = sheet.getContext("2d", { alpha: false })!;
+    imgRef.current = ctx.createImageData(16, 16);
+  }, []);
+
+  // continuous draw loop
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    const img = imgRef.current;
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
+    if (!sheet || !img || !canvas) return;
+    const sheetCtx = sheet.getContext("2d", { alpha: false })!;
+    const ctx = canvas.getContext("2d", { alpha: false })!;
 
-    if (!imageDataRef.current) {
-      imageDataRef.current = ctx.createImageData(320, 240);
-    }
-    const imageData = imageDataRef.current;
-    const data = imageData.data;
+    let rafId: number;
+    const draw = () => {
+      const data = img.data;
 
-    if (!screenOn) {
-      data.fill(0);
-    } else {
-      let idx = 0;
-      for (let ty = 0; ty < 15; ty++) {
-        for (let tx = 0; tx < 20; tx++) {
-          const tile = tileMap[idx++]!;
-          const pixels = tileDefinitions[tile]!;
-          const startX = tx * 16;
-          const startY = ty * 16;
+      // 1) rebuild palette (16 entries)
+      const pbase = 0xfa00;
+      const palette: [number, number, number][] = new Array(16) as any;
+      for (let i = 0; i < 16; i++) {
+        const b = readByte(pbase + i);
+        palette[i] = [
+          Math.ceil(((b >> 5) & 0x07) * 36.4),
+          Math.ceil(((b >> 2) & 0x07) * 36.4),
+          (b & 0x03) * 85,
+        ];
+      }
 
-          for (let y = 0; y < 16; y++) {
-            for (let x = 0; x < 16; x++) {
-              const ci = pixels[y * 16 + x];
-              const { r, g, b } = palette[ci];
-              const px = startX + x;
-              const py = startY + y;
-              const off = (py * 320 + px) * 4;
-              data[off] = r;
-              data[off + 1] = g;
-              data[off + 2] = b;
-              data[off + 3] = 255;
-            }
+      // 2) rebuild all 16 tiles into the atlas
+      const tbase = 0xf200;
+      for (let t = 0; t < 16; t++) {
+        const baseAddr = tbase + t * 128;
+        // fill img.data for this tile
+        for (let y = 0; y < 16; y++) {
+          for (let x = 0; x < 16; x += 2) {
+            const byte = readByte(baseAddr + y * 8 + x / 2);
+            const lo = byte & 0x0f,
+              hi = (byte >> 4) & 0x0f;
+            const offs = (y * 16 + x) * 4;
+            const [r1, g1, b1] = palette[lo];
+            const [r2, g2, b2] = palette[hi];
+            data[offs] = r1;
+            data[offs + 1] = g1;
+            data[offs + 2] = b1;
+            data[offs + 3] = 255;
+            data[offs + 4] = r2;
+            data[offs + 5] = g2;
+            data[offs + 6] = b2;
+            data[offs + 7] = 255;
+          }
+        }
+        sheetCtx.putImageData(img, t * 16, 0);
+      }
+
+      // 3) blit to onscreen canvas
+      if (!screenOn) {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, 320, 240);
+      } else {
+        const mbase = 0xf000;
+        let idx = 0;
+        for (let ty = 0; ty < 15; ty++) {
+          for (let tx = 0; tx < 20; tx++, idx++) {
+            const tile = readByte(mbase + idx) & 0x0f;
+            ctx.drawImage(
+              sheet,
+              tile * 16,
+              0,
+              16,
+              16,
+              tx * 16,
+              ty * 16,
+              16,
+              16
+            );
           }
         }
       }
-    }
-    ctx.putImageData(imageData, 0, 0);
-  }, [screenOn, palette, tileDefinitions, tileMap]);
+
+      rafId = requestAnimationFrame(draw);
+    };
+
+    draw();
+    return () => cancelAnimationFrame(rafId);
+  }, [screenOn]);
 
   return (
     <div
@@ -125,7 +127,6 @@ const Screen = memo(({ className }: { className?: string }) => {
             ref={canvasRef}
             width={320}
             height={240}
-            className="block"
             style={{ imageRendering: "pixelated" }}
           />
         </div>
@@ -144,7 +145,7 @@ const Screen = memo(({ className }: { className?: string }) => {
         <Button
           variant="outline"
           size="lg"
-          onClick={() => setScreenOn(!screenOn)}
+          onClick={() => setScreenOn((on) => !on)}
           className={cn(
             "flex items-center gap-2 transition-all",
             screenOn
