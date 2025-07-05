@@ -6,7 +6,6 @@ import GameDisplay from "@/components/simulator/display";
 import FileUpload from "@/components/simulator/file-upload";
 import PcCounter from "@/components/simulator/pc-counter";
 import Console from "@/components/simulator/console";
-import { PerformanceDebugger } from "@/components/simulator/performance-debugger";
 import { useSimulator } from "@/hooks/use-simulator";
 
 export default function Home() {
@@ -41,7 +40,6 @@ export default function Home() {
             <div className="h-4"></div>
           </div>
 
-          <PerformanceDebugger />
           <div className="h-4"></div>
           <Console />
         </div>

@@ -55,10 +55,6 @@ const simulator = new Simulator(
 
 // --- 6) Wire up simulator events into the event buffer ---
 simulator.on("ecall", (req) => {
-  // Atomics.store(eventView, 0, EventCode.ECALL);
-  // Atomics.store(eventView, 1, req.service);
-  // // UI can read registersView/memoryView directly for full state
-  // Atomics.notify(eventView, 0);
   self.postMessage({
     command: "ecall",
     payload: req,
@@ -118,9 +114,9 @@ simulator.on("exit", (ev) => {
                 simulator.keyUp(String.fromCharCode(newArg));
                 break;
             }
+            // clear for the next command
+            Atomics.store(controlView, 0, Command.NONE);
           }
-          // clear for the next command
-          Atomics.store(controlView, 0, Command.NONE);
           if (leave) break; // leave the inner loop to re-check state
         }
       }
