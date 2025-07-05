@@ -187,7 +187,6 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           // Stop audio playback
           break;
         }
-        // TODO: Implement from 4...7
         case 8: {
           // registers dump, print all registers to console
           const output = [...registers]
@@ -251,6 +250,8 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           get().consolePrint(["Exiting program with code " + registers[6]]);
           return;
         }
+        default:
+          break;
       }
 
       return;

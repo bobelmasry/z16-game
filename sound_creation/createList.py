@@ -55,8 +55,8 @@ def main(mp3_file):
 
     for freq, duration in instructions:
         print(f"Tone: {freq} Hz, Duration: {duration} ms")
-        output_string += "li a0, " + str(freq) + "\n"
-        output_string += "li a1, " + str(duration) + "\n"
+        output_string += "li16 a0, " + str(freq) + "\n"
+        output_string += "li16 a1, " + str(duration) + "\n"
         output_string += "ecall 4\n"
     
     with open("sound.s", "w") as f:
