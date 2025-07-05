@@ -6,10 +6,15 @@ import GameDisplay from "@/components/simulator/display";
 import FileUpload from "@/components/simulator/file-upload";
 import PcCounter from "@/components/simulator/pc-counter";
 import Console from "@/components/simulator/console";
+import MemoryInspector from "@/components/simulator/memory-inspector";
 import { useSimulator } from "@/hooks/use-simulator";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { MemoryStick } from "lucide-react";
 
 export default function Home() {
   useSimulator();
+  const [isMemoryInspectorOpen, setIsMemoryInspectorOpen] = useState(false);
 
   return (
     <div className="retro-app-background min-h-screen">
@@ -27,6 +32,17 @@ export default function Home() {
               <FileUpload />
               <Registers />
               <PcCounter />
+              {/* Memory Inspector Button */}
+              <div className="retro-terminal retro-terminal-glow bg-black border border-green-500/30 p-3 rounded">
+                <Button
+                  onClick={() => setIsMemoryInspectorOpen(true)}
+                  variant="outline"
+                  className="w-full text-green-400 border-green-500/30 hover:bg-green-500/10 font-mono"
+                >
+                  <MemoryStick className="w-4 h-4 mr-2" />
+                  Memory Inspector
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -38,12 +54,30 @@ export default function Home() {
             <div className="h-4"></div>
             <PcCounter />
             <div className="h-4"></div>
+            {/* Memory Inspector Button for mobile */}
+            <div className="retro-terminal retro-terminal-glow bg-black border border-green-500/30 p-3 rounded">
+              <Button
+                onClick={() => setIsMemoryInspectorOpen(true)}
+                variant="outline"
+                className="w-full text-green-400 border-green-500/30 hover:bg-green-500/10 font-mono"
+              >
+                <MemoryStick className="w-4 h-4 mr-2" />
+                Memory Inspector
+              </Button>
+            </div>
+            <div className="h-4"></div>
           </div>
 
           <div className="h-4"></div>
           <Console />
         </div>
       </div>
+
+      {/* Memory Inspector Modal */}
+      <MemoryInspector
+        isOpen={isMemoryInspectorOpen}
+        onClose={() => setIsMemoryInspectorOpen(false)}
+      />
     </div>
   );
 }
