@@ -1,29 +1,77 @@
 "use client";
 import { useSimulatorStore } from "@/lib/store/simulator";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 
 const TILE_MAP_ADDR = 0xF000;
 const TILE_SET_ADDR = 0xF200;
 const PALETTE_ADDR = 0xFA00;
 
+const TILE_SIZE = 16;
 const SCREEN_WIDTH_TILES = 20;
 const SCREEN_HEIGHT_TILES = 15;
+const SCREEN_WIDTH_PX = SCREEN_WIDTH_TILES * TILE_SIZE;   // 320
+const SCREEN_HEIGHT_PX = SCREEN_HEIGHT_TILES * TILE_SIZE; // 240
 
 export default function GameDisplay() {
   const memory = useSimulatorStore((s) => s.memory);
-  const [colors, setColors] = useState<string[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    // Extract RGB palette
-    const palette: string[] = [];
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const imageData = ctx.createImageData(SCREEN_WIDTH_PX, SCREEN_HEIGHT_PX);
+    const data = imageData.data;
+
+    // Build color palette
+    const palette: [number, number, number][] = [];
     for (let i = 0; i < 16; i++) {
       const byte = memory[PALETTE_ADDR + i];
-      const r = ((byte >> 5) & 0b111) * 36;  // scale 3-bit to 0–255
+      const r = ((byte >> 5) & 0b111) * 36;
       const g = ((byte >> 2) & 0b111) * 36;
-      const b = (byte & 0b11) * 85;          // 2-bit to 0–255
-      palette.push(`rgb(${r},${g},${b})`);
+      const b = (byte & 0b11) * 85;
+      palette.push([r, g, b]);
     }
-    setColors(palette);
+
+    // Render each tile
+    for (let ty = 0; ty < SCREEN_HEIGHT_TILES; ty++) {
+      for (let tx = 0; tx < SCREEN_WIDTH_TILES; tx++) {
+        const tileOffset = ty * SCREEN_WIDTH_TILES + tx;
+        const tileIndex = memory[TILE_MAP_ADDR + tileOffset];
+        const tileStart = TILE_SET_ADDR + tileIndex * 128;
+
+        for (let row = 0; row < TILE_SIZE; row++) {
+          for (let col = 0; col < TILE_SIZE; col += 2) {
+            const byteIndex = row * 8 + col / 2;
+            const byte = memory[tileStart + byteIndex];
+            const high = (byte >> 4) & 0x0F;
+            const low = byte & 0x0F;
+
+            const x0 = tx * TILE_SIZE + col;
+            const y0 = ty * TILE_SIZE + row;
+            const baseIndex0 = (y0 * SCREEN_WIDTH_PX + x0) * 4;
+            const baseIndex1 = (y0 * SCREEN_WIDTH_PX + x0 + 1) * 4;
+
+            const [r0, g0, b0] = palette[high];
+            data[baseIndex0] = r0;
+            data[baseIndex0 + 1] = g0;
+            data[baseIndex0 + 2] = b0;
+            data[baseIndex0 + 3] = 255;
+
+            const [r1, g1, b1] = palette[low];
+            data[baseIndex1] = r1;
+            data[baseIndex1 + 1] = g1;
+            data[baseIndex1 + 2] = b1;
+            data[baseIndex1 + 3] = 255;
+          }
+        }
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
   }, [memory]);
 
   return (
@@ -31,48 +79,13 @@ export default function GameDisplay() {
       <h2 className="text-lg font-semibold mb-2 text-green-400 font-mono">
         Display
       </h2>
-      <div className="w-[320px] h-[240px] grid grid-cols-20 grid-rows-15 gap-0">
-        {Array.from({ length: SCREEN_WIDTH_TILES * SCREEN_HEIGHT_TILES }).map((_, index) => {
-          const tileIndex = memory[TILE_MAP_ADDR + index]; // 0–15
-          const tilePixelData = new Uint8Array(
-            memory.buffer,
-            TILE_SET_ADDR + tileIndex * 128,
-            128
-          );
-
-          return (
-            <Tile
-              key={index}
-              tileBytes={tilePixelData}
-              colors={colors}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function Tile({ tileBytes, colors }: { tileBytes: Uint8Array; colors: string[] }) {
-  const pixels: string[] = [];
-
-  for (let i = 0; i < tileBytes.length; i++) {
-    const byte = tileBytes[i];
-    const low = byte & 0x0F;
-    const high = (byte >> 4) & 0x0F;
-    pixels.push(colors[high] || "#000");
-    pixels.push(colors[low] || "#000");
-  }
-
-  return (
-    <div className="grid grid-cols-16 grid-rows-16 w-[16px] h-[16px]">
-      {pixels.map((color, i) => (
-        <div
-          key={i}
-          style={{ backgroundColor: color }}
-          className="w-[1px] h-[1px]"
-          />
-        ))}
+      <canvas
+        ref={canvasRef}
+        width={SCREEN_WIDTH_PX}
+        height={SCREEN_HEIGHT_PX}
+        className="retro-display border border-green-500"
+        style={{ imageRendering: "pixelated" }}
+      />
     </div>
   );
 }
