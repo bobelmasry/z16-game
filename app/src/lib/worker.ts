@@ -12,6 +12,7 @@ let BUFS: {
   memory: SharedArrayBuffer;
   registers: SharedArrayBuffer;
   pc: SharedArrayBuffer;
+  state: SharedArrayBuffer;
   control: SharedArrayBuffer;
   event: SharedArrayBuffer;
 };
@@ -22,6 +23,7 @@ self.onmessage = (event) => {
       memory: data.payload.memory,
       registers: data.payload.registers,
       pc: data.payload.pc,
+      state: data.payload.state,
       control: data.payload.control,
       event: data.payload.event,
     };
@@ -34,7 +36,7 @@ function main() {
   const controlView = new Int32Array(BUFS.control);
 
   // 3) simulator
-  const sim = new Simulator(BUFS.memory, BUFS.registers, BUFS.pc);
+  const sim = new Simulator(BUFS.memory, BUFS.registers, BUFS.pc, BUFS.state);
 
   // 4) wire sim events back to main
   sim.on("ecall", (payload) => postMessage({ command: "ecall", payload }));
@@ -60,9 +62,7 @@ function main() {
     [Command.PAUSE]: () => sim.pause(),
     [Command.STEP]: () => sim.step(),
     [Command.RESET]: () => sim.reset(),
-    [Command.RESUME]: (arg) => {
-      /*…handle resume…*/
-    },
+    [Command.RESUME]: () => resume(),
     [Command.SET_SPEED]: (arg) => sim.setSpeed(arg),
     [Command.KEY_DOWN]: (arg) => sim.keyDown(String.fromCharCode(arg)),
     [Command.KEY_UP]: (arg) => sim.keyUp(String.fromCharCode(arg)),
@@ -100,6 +100,18 @@ function main() {
           handlers[nxt](arg); // speed, keys…
         }
       }
+    }
+  }
+
+  function resume() {
+    if (sim.state !== SimulatorState.Blocked) return; // Only resume if blocked
+    sim.pc += 2; // Move to the next instruction
+    // if we were running, go back into the run loop;
+    // otherwise just emit an update so the UI redraws
+    if (sim.prevState === SimulatorState.Running) {
+      runLoop();
+    } else {
+      sim.state = SimulatorState.Paused;
     }
   }
 }

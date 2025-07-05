@@ -13,13 +13,13 @@ export const BUFS = {
   memory: new SharedArrayBuffer(65536 * Uint16Array.BYTES_PER_ELEMENT),
   registers: new SharedArrayBuffer(8 * Uint16Array.BYTES_PER_ELEMENT),
   pc: new SharedArrayBuffer(1 * Uint16Array.BYTES_PER_ELEMENT),
+  state: new SharedArrayBuffer(1 * Int32Array.BYTES_PER_ELEMENT),
   control: new SharedArrayBuffer(2 * Int32Array.BYTES_PER_ELEMENT),
   event: new SharedArrayBuffer(3 * Int32Array.BYTES_PER_ELEMENT),
 };
 
 export function useSimulator() {
   const setTotalInstructions = useSimulatorStore((s) => s.setTotalInstructions);
-  const setState = useSimulatorStore((s) => s.setState);
   const handleECall = useOperatingSystemStore((s) => s.handleECall);
   const consolePrint = useOperatingSystemStore((s) => s.consolePrint);
 
@@ -32,6 +32,7 @@ export function useSimulator() {
         memory: BUFS.memory,
         registers: BUFS.registers,
         pc: BUFS.pc,
+        state: BUFS.state,
         control: BUFS.control,
         event: BUFS.event,
       },
@@ -41,7 +42,6 @@ export function useSimulator() {
       const data = event.data as WorkerEventResponse;
       switch (data.command) {
         case "exit":
-          setState(SimulatorState.Halted);
           setTotalInstructions(data.payload.totalInstructions);
           consolePrint([
             "Instructions executed: " + data.payload.totalInstructions,

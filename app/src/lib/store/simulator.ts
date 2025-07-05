@@ -8,7 +8,6 @@ import { sendCommand } from "../utils/command";
 import { BUFS } from "@/hooks/use-simulator";
 
 export type SimulatorStore = {
-  state: SimulatorState;
   speed: number;
   instructions: Instruction[]; // Array of decoded instructions
   totalInstructions: number; // used to track total instructions executed
@@ -21,7 +20,6 @@ export type SimulatorStore = {
 
   setSpeed: (speed: number) => void;
   setTotalInstructions: (total: number) => void;
-  setState: (state: SimulatorState) => void; // Set the simulator state
 
   updateRegisters: (registers: Uint16Array) => void;
   loadMemory: (memory: Uint16Array<ArrayBuffer>) => void; // Set memory and generate instructions
@@ -36,7 +34,6 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   reset: () => {
     useOperatingSystemStore.getState().reset();
     sendCommand(Command.RESET);
-    set({ state: SimulatorState.Paused });
   },
 
   step: () => {
@@ -45,12 +42,10 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
 
   start: () => {
     sendCommand(Command.START);
-    set({ state: SimulatorState.Running });
   },
 
   pause: () => {
     sendCommand(Command.PAUSE);
-    set(() => ({ state: SimulatorState.Paused }));
   },
 
   resume() {
@@ -76,6 +71,4 @@ export const useSimulatorStore = create<SimulatorStore>()((set, get) => ({
   },
 
   setTotalInstructions: (total) => set(() => ({ totalInstructions: total })),
-
-  setState: (state) => set(() => ({ state })),
 }));

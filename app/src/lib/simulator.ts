@@ -35,24 +35,34 @@ interface SimulatorEvents {
 export class Simulator extends EventEmitter<SimulatorEvents> {
   private instructions: Instruction[] = []; // Array of instructions to execute
   private memory: Uint16Array; // 64KB memory
+  private originalMemory?: Uint16Array;
   private registers: Uint16Array = new Uint16Array(8); // 8 registers (x0 to x7) (16-bit each)
   private _pc: Uint16Array = new Uint16Array(1); // Program Counter starts at 0
   private totalInstructions: number = 0; // Total instructions executed
   private pressedKeys: Set<string> = new Set(); // Track pressed keys for ecall
-
+  private _state: Uint16Array = new Uint16Array(1); // Shared state buffer
   speed: number = 3; // Default frequency (3 Hz)
-  state: SimulatorState = SimulatorState.Paused;
   prevState: SimulatorState = SimulatorState.Paused;
 
   constructor(
     sharedMemoryBuf: SharedArrayBuffer,
     sharedRegistersBuf: SharedArrayBuffer,
-    sharedPCBuf: SharedArrayBuffer
+    sharedPCBuf: SharedArrayBuffer,
+    sharedStateBuf: SharedArrayBuffer
   ) {
     super();
     this.memory = new Uint16Array(sharedMemoryBuf);
     this.registers = new Uint16Array(sharedRegistersBuf);
     this._pc = new Uint16Array(sharedPCBuf); // Initialize PC from shared buffer
+    this._state = new Uint16Array(sharedStateBuf); // Initialize state from shared buffer
+  }
+
+  get state(): SimulatorState {
+    return this._state[0];
+  }
+
+  set state(value: SimulatorState) {
+    this._state[0] = value;
   }
 
   get pc(): number {
@@ -63,7 +73,7 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
   }
 
   load(): void {
-    this.reset();
+    this.originalMemory = new Uint16Array(this.memory); // Store original memory for reset
     this.instructions = generateInstructions(this.memory);
   }
 
@@ -85,6 +95,7 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
     this.registers.fill(0);
     this.state = SimulatorState.Paused;
     this.totalInstructions = 0;
+    if (this.originalMemory) this.memory.set(this.originalMemory); // Restore original memory
   }
 
   pause(): void {

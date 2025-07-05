@@ -99,7 +99,6 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
               addr,
             },
           }));
-          useSimulatorStore.getState().setState(SimulatorState.Blocked); // Block the simulator
           return;
         }
         case 2: {
@@ -107,7 +106,6 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           set(() => ({
             pendingECall: { type: "readInt" },
           }));
-          useSimulatorStore.getState().setState(SimulatorState.Blocked); // Block the simulator
           return;
         }
         case 3: {
