@@ -317,20 +317,18 @@ should_neg_x_dir_right:
 
 neg_x_dir_left:
 
-    la t0, ball_pos_y
+    la t0, ball_old_pos_y
     lbu t1, 0(t0)            # load ball_pos_y
     la t0, p1_pos
     lbu a0, 0(t0)            # load p1_pos
-    sub t1, a0   
-    li a1, 0
-    bge t1, a1, neg_x_dir_double_check_left     # if ball_pos_y >= p1_pos, negate the direction
+    mv s0, a0
+    addi s0, 3            # s0 = p1_pos + 4
+    bge t1, a0, double_check_neg_x_dir_left_done     # if ball_pos_y >= p1_pos, negate the direction
+    
     j Game_over
-
-neg_x_dir_double_check_left:
-    li a1, 3
-    blt t1, a1, neg_x_dir_left_done # if ball_pos_y < p1_pos + 3, negate the direction
-    j Game_over  
-
+double_check_neg_x_dir_left_done:
+    blt t1, s0, neg_x_dir_left_done  # if ball_pos_y < p1_pos + 4, negate the direction
+    j Game_over
 neg_x_dir_left_done:
 
     la t0, ball_pos_x
@@ -346,20 +344,18 @@ neg_x_dir_left_done:
   ####################  
 neg_x_dir_right:
 
-    la t0, ball_pos_y
+    la t0, ball_old_pos_y
     lbu t1, 0(t0)            # load ball_pos_y
     la t0, p2_pos
     lbu a0, 0(t0)            # load p1_pos
-    sub t1, a0   
-    li a1, 0
-    bge t1, a1, neg_x_dir_double_check_right 
+    mv s0, a0
+    addi s0, 3           # s0 = p1_pos + 4
+    bge t1, a0, doubl_check_neg_x_dir_right_done     # if ball_pos_y >= p1_pos, negate the direction
     j Game_over
 
-neg_x_dir_double_check_right:
-    li a1, 3
-    blt t1, a1, neg_x_dir_right_done # if ball_pos_y < p1_pos + 3, negate the direction
-j Game_over  
-
+doubl_check_neg_x_dir_right_done:
+    blt t1, s0, neg_x_dir_right_done     # if ball_pos_y < p1_pos + 4, negate the direction
+    j Game_over
 neg_x_dir_right_done:
 
     la t0, ball_pos_x
