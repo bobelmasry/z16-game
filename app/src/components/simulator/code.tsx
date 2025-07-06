@@ -153,7 +153,7 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
         options: { isWholeLine: true, className: "currentLine" },
       },
     ]);
-    editor.revealLineInCenter(lineNum);
+    // editor.revealLineInCenter(lineNum); // Disabled autoscroll
   };
 
   useEffect(() => {
@@ -186,9 +186,8 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
 
   return (
     <div
-      className={`retro-sidebar h-full border-r border-green-500/30 flex flex-col transition-all duration-300 ${
-        isExpanded ? "" : "w-12"
-      }`}
+      className={`retro-sidebar h-full border-r border-green-500/30 flex flex-col transition-all duration-300 ${isExpanded ? "" : "w-12"
+        }`}
       style={{ width: isExpanded ? width : 48 }}
     >
       {isExpanded ? (

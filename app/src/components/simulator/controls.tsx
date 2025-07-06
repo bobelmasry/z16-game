@@ -96,7 +96,7 @@ export default function Controls() {
         <p className="p-2 text-green-400 font-mono">Simulation speed: </p>
         <Slider
           value={[speed]}
-          max={10000}
+          max={50000}
           min={1}
           step={1}
           className="retro-slider w-40 h-4"

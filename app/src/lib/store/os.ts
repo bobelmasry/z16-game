@@ -138,13 +138,9 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           const duration = registers[7]; // a1
 
           if (frequency < 0 || frequency > 65535) {
-            this.consoleAppend("Error: Frequency must be between 0 and 65535.");
             return;
           }
           if (duration < 0 || duration > 65535) {
-            this.consoleAppend(
-              "Error: Duration must be between 0 and 65535 milliseconds."
-            );
             return;
           }
 
@@ -164,13 +160,10 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           gainNode.connect(audioCtx.destination);
 
           oscillator.start();
-          this.consoleAppend(
-            `Playing tone: ${frequency} Hz for ${duration} ms at volume ${255}/255`
-          );
+
 
           setTimeout(() => {
             oscillator.stop();
-            this.consoleAppend("Tone finished.");
           }, duration);
 
           break;
@@ -179,7 +172,6 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           // Set audio volume, a0 = volume (0-255)
           const volume = registers[6]; // x6 is a0
           if (volume < 0 || volume > 255) {
-            this.consoleAppend("Error: Volume must be between 0 and 255.");
           }
           break;
         }
@@ -266,9 +258,9 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
         consoleLog:
           state.consoleLog.length > 0
             ? [
-                ...state.consoleLog.slice(0, -1),
-                state.consoleLog[state.consoleLog.length - 1] + message,
-              ]
+              ...state.consoleLog.slice(0, -1),
+              state.consoleLog[state.consoleLog.length - 1] + message,
+            ]
             : [message],
       }));
     },

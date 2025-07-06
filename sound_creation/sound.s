@@ -5,7 +5,7 @@
 
 main: 
     li a0, 190
-    li a1, 70
+    li a1, 50
     ecall 4
     li a0, 197
     li a1, 279
