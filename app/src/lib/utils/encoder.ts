@@ -143,7 +143,8 @@ export class InstructionEncoder {
     const rs1 = i.rd;
     const rs2 = i.rs2;
     // imm are bits[12:15] → offset = sext(imm<<1) with 5-bit width
-    const offset = signExtend(i.imm << 1, 5);
+    const offset = signExtend(i.imm, 5) * 2;
+
     switch (i.funct3) {
       case 0:
         return `BEQ   ${getRegisterName(rs1)}, ${getRegisterName(
@@ -218,7 +219,7 @@ export class InstructionEncoder {
 
   private encodeJType(i: JTypeInstruction): string {
     // sign extend the immediate
-    const target = signExtend(i.imm << 1, 9);
+    const target = signExtend(i.imm, 9) * 2;
     if (i.flag === 0) {
       return `J     ${target}`;
     } else {
