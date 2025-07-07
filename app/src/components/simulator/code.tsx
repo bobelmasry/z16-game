@@ -3,6 +3,7 @@ import { BUFS } from "@/hooks/use-simulator";
 import { useSimulatorStore } from "@/lib/store/simulator";
 import { InstructionEncoder } from "@/lib/utils/encoder";
 import Editor, { OnMount, BeforeMount } from "@monaco-editor/react";
+import { ChevronLeft } from "lucide-react";
 import * as monaco from "monaco-editor";
 import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/shallow";
@@ -131,6 +132,7 @@ interface CodeWindowProps {
 
 export function CodeViewer({ className, width }: CodeWindowProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [autoscrollEnabled, setAutoscrollEnabled] = useState(true);
   const { code, empty } = useSimulatorStore(
     useShallow((s) => ({
       code: new InstructionEncoder(s.instructions).encodeInstructions(),
@@ -141,23 +143,26 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
   const monacoRef = useRef<typeof monaco | null>(null);
   const decorationsRef = useRef<string[]>([]);
 
-  const updateHighlight = (pc: number) => {
-    const editor = editorRef.current;
-    const mon = monacoRef.current;
-    if (!editor || !mon) return;
-
-    const lineNum = Math.ceil((pc + 1) / 2);
-    decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
-      {
-        range: new mon.Range(lineNum, 1, lineNum, 1),
-        options: { isWholeLine: true, className: "currentLine" },
-      },
-    ]);
-    // editor.revealLineInCenter(lineNum); // Disabled autoscroll
-  };
-
   useEffect(() => {
     if (empty) return;
+
+    const updateHighlight = (pc: number) => {
+      const editor = editorRef.current;
+      const mon = monacoRef.current;
+      if (!editor || !mon) return;
+
+      const lineNum = Math.ceil((pc + 1) / 2);
+      decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
+        {
+          range: new mon.Range(lineNum, 1, lineNum, 1),
+          options: { isWholeLine: true, className: "currentLine" },
+        },
+      ]);
+      if (autoscrollEnabled) {
+        editor.revealLineInCenter(lineNum);
+      }
+    };
+
     const view = new Uint16Array(BUFS.pc);
     let rafId: number;
     const update = () => {
@@ -166,7 +171,7 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
     };
     update();
     return () => cancelAnimationFrame(rafId);
-  }, [empty]);
+  }, [empty, autoscrollEnabled]);
 
   const handleMount: OnMount = (editor, mon) => {
     editorRef.current = editor;
@@ -181,21 +186,42 @@ export function CodeViewer({ className, width }: CodeWindowProps) {
       overviewRulerLanes: 0,
       overviewRulerBorder: false,
     });
-    if (!empty) updateHighlight(0);
+    if (!empty) {
+      // Initial highlight at line 1
+      const lineNum = 1;
+      decorationsRef.current = editor.deltaDecorations(decorationsRef.current, [
+        {
+          range: new mon.Range(lineNum, 1, lineNum, 1),
+          options: { isWholeLine: true, className: "currentLine" },
+        },
+      ]);
+    }
   };
 
   return (
     <div
-      className={`retro-sidebar h-full border-r border-green-500/30 flex flex-col transition-all duration-300 ${isExpanded ? "" : "w-12"
-        }`}
+      className={`retro-sidebar h-full border-r border-green-500/30 flex flex-col transition-all duration-300 ${
+        isExpanded ? "" : "w-12"
+      }`}
       style={{ width: isExpanded ? width : 48 }}
     >
       {isExpanded ? (
         <>
           <div className="p-2 border-b border-green-500/30 flex-shrink-0 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-green-400 font-mono">
-              Assembly Code
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-green-400 font-mono">
+                Assembly Code
+              </h2>
+              <label className="flex items-center gap-2 text-sm text-green-400 font-mono">
+                <input
+                  type="checkbox"
+                  checked={autoscrollEnabled}
+                  onChange={(e) => setAutoscrollEnabled(e.target.checked)}
+                  className="w-4 h-4 text-green-500 bg-black border-green-500 rounded focus:ring-green-500 focus:ring-2"
+                />
+                Auto-scroll
+              </label>
+            </div>
             <button
               onClick={() => setIsExpanded(false)}
               className="text-green-500 hover:text-green-300 transition-colors p-1"
