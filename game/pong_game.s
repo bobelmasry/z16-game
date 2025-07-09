@@ -1,4 +1,3 @@
-.equ STACK_TOP, 0xEFFE
 .equ TILE_MAP_BUFFER_ADDR, 0xF000
 .equ TILE_DEFINITIONS_ADDR, 0xF200
 .equ COLOR_PALLETE_ADDR, 0xFA00
@@ -20,7 +19,7 @@ main:
 
 move_p1:
     # Push the return address and s0
-    addi sp, -4
+    addi sp, -2
     sw ra, 0(sp)        # save ra (x1)
 
     la t0, p1_dir
@@ -97,12 +96,12 @@ move_p1:
     p1_move_done:
         # Restore the return address and s0
         lw ra, 0(sp)
-        addi sp, 4
+        addi sp, 2
         ret
 
 move_p2:
     # Push the return address and s0
-    addi sp, -4
+    addi sp, -2
     sw ra, 0(sp)        # save ra (x1)
 
     la t0, p2_dir
@@ -182,7 +181,7 @@ move_p2:
     p2_move_done:
         # Restore the return address and s0
         lw ra, 0(sp)
-        addi sp, 4
+        addi sp, 2
         ret
 
 read_keyboard:
@@ -232,9 +231,9 @@ get_offset:
     # There is no multiplication instruction, so we use addition, also we only have access to t0, t1
     # Save the return address, s0, t0, and t1 on the stack
 
-    addi sp, -12
-    sw ra, 8(sp)        # save ra
-    sw t1, 4(sp)         # save t1
+    addi sp, -6
+    sw ra, 4(sp)        # save ra
+    sw t1, 2(sp)         # save t1
     sw t0, 0(sp)         # save t0
 
     mv t0, a0          # Move player's y position to t0
@@ -245,15 +244,15 @@ get_offset:
     mv a0, t0
 
     # Restore the return address, ra, t0, and t1 from the stack
-    lw ra, 8(sp)        # restore ra
-    lw t1, 4(sp)         # restore t1
+    lw ra, 4(sp)        # restore ra
+    lw t1, 2(sp)         # restore t1
     lw t0, 0(sp)         # restore t0
-    addi sp, 12         # restore stack pointer
+    addi sp, 6       # restore stack pointer
 
     ret
 
 move_ball:
-    addi sp, -4
+    addi sp, -2
     sw ra, 0(sp)        # save ra (x1)
 
     ###### Save the old position of the ball ########
@@ -399,14 +398,12 @@ paint_ball:
 
     move_ball_done:
     lw ra, 0(sp)        # restore ra
-    addi sp, 4
+    addi sp, 2
     ret
 
 Game_over:
+    li a0, 0
     ECALL 10       # Exit program syscall
-
-
-    
 
 
 .data
@@ -450,13 +447,8 @@ tiles:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 .org 0xF200
-
-
-
-
 # background tiles
 tile0_data:    .fill 128,1,0x00 
-
 # Ball tiles
 tile1_data:        
     .byte 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x00
