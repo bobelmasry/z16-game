@@ -235,23 +235,31 @@ check_win:
     ret
 
 p1_wins:
-la t0, tiles_p1_won
-j update_screen
+la a0, tiles_p1_won
+call update_screen
+ecall 10 # Exit the program
 
 p2_wins:
-la t0, tiles_p2_won
-j update_screen
+la a0, tiles_p2_won
+call update_screen
+ecall 10 # Exit the program
+
 update_screen:
-    # Copy tiles_p1_won to tiles (300 bytes)
-        li s0, 44
-        la t1, tiles             # destination pointer
-    copy_won_loop:
-        lbu a0, 0(t0)
-        sb a0, 0(t1)
-        addi t0, 1
+    # Update the screen with input tiles
+    # Input: a0 = address of the tiles
+    li16 s0, 300 # Number of tiles in the tile map (15 rows * 20 columns)
+    li t0, 0
+    la t1, tiles             # destination pointer
+    update_screen_loop:
+        beq t0, s0, exit_update_screen_loop # if t0 == 300, exit loop
+        lbu a1, 0(a0)
+        sb a1, 0(t1)
+        addi a0, 1
         addi t1, 1
-        bne a0, s0, copy_won_loop
-    ecall 10
+        addi t0, 1
+        j update_screen_loop
+    exit_update_screen_loop:
+        ret
         
 get_offset: 
     # Get the offset for the tile map based on player's y position
@@ -551,7 +559,7 @@ tiles_p1_won:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 44
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 tiles_p2_won:
 # background tiles
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -568,7 +576,7 @@ tiles_p2_won:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 44
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 
 
