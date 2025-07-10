@@ -140,8 +140,15 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
       return addr % 2 === 0 ? word & 0xff : (word >> 8) & 0xff;
     };
     const getWord = (addr: number) => {
-      const wordAddr = Math.floor(addr / 2);
-      return this.memory[wordAddr] || 0;
+      if (addr % 2 == 0) {
+        const wordAddr = Math.floor(addr / 2);
+        return this.memory[wordAddr] || 0;
+      } else {
+        const wordAddr = Math.floor(addr / 2);
+        const firstByte = (this.memory[wordAddr] || 0) >> 8; // High byte of first word
+        const secondByte = (this.memory[wordAddr + 1] || 0) & 0xff; // Low byte of second word
+        return firstByte | (secondByte << 8);
+      }
     };
     const setByte = (addr: number, value: number) => {
       const wordAddr = Math.floor(addr / 2);
@@ -153,9 +160,17 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
       }
     };
     const setWord = (addr: number, value: number) => {
-      const wordAddr = Math.floor(addr / 2);
-      if (wordAddr < this.memory.length) {
+      if (addr % 2 == 0) {
+        const wordAddr = Math.floor(addr / 2);
         this.memory[wordAddr] = value & 0xffff;
+      } else {
+        const wordAddr = Math.floor(addr / 2);
+        const firstByte = value & 0xff; // Low byte goes to high byte of first word
+        const secondByte = (value >> 8) & 0xff; // High byte goes to low byte of second word
+        this.memory[wordAddr] =
+          (this.memory[wordAddr] & 0x00ff) | (firstByte << 8);
+        this.memory[wordAddr + 1] =
+          (this.memory[wordAddr + 1] & 0xff00) | secondByte;
       }
     };
 
