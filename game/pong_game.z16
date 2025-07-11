@@ -8,13 +8,22 @@ j main
 .org 0x0020
 main:
     li16 sp, STACK_TOP # Initialize stack pointer
-    li t0, -1
-    call read_keyboard
-    call move_p1
-    call move_p2
-    call move_ball
-    call check_win
-    j main
+    # title_screen_loop:
+    #     li16 a0, 32 # Space key
+    #     ecall 7 # Read character from keyboard
+    #     bnz a0, draw_initial_game # If space is pressed, draw the initial game screen
+    #     j title_screen_loop
+    draw_initial_game:
+        la a0, tiles_initial_game
+        call update_screen
+    game_loop:
+        call read_keyboard
+        call move_p1
+        call move_p2
+        call move_ball
+        call paint_ball
+        call check_win
+        j game_loop
 
 move_p1:
     addi sp, -2
@@ -183,45 +192,45 @@ move_p2:
         ret
 
 read_keyboard:
-    li16 a0, 'w'
-    ecall 7
-    bnz a0, p1_set_up
-    j after_p1_set_up
-    p1_set_up:
-        la t0, p1_dir
-        li a0, 1
-        sw a0, 0(t0)            # store in p1_dir = 1
-    after_p1_set_up:
-    li16 a0, 's'
-    ecall 7
-    bnz a0, p1_set_down
-    j after_p1_set_down
-    p1_set_down:
-        la t0, p1_dir
-        li a0, -1
-        sw a0, 0(t0)            # store in p1_dir = -1
-    after_p1_set_down:
+    addi sp, -2
+    sw ra, 0(sp)        # save ra (x1)
 
+    ### Player 1 Movement ###
+    li16 a0, 'w'
+    la a1, p1_dir
+    li t0, 1
+    call check_character
+
+    li16 a0, 's'
+    la a1, p1_dir
+    li t0, -1
+    call check_character
+
+    ### Player 2 Movement ###
     li16 a0, 'i'
-    ecall 7
-    bnz a0, p2_set_up
-    j after_p2_set_up
-    p2_set_up:
-        la t0, p2_dir
-        li a0, 1
-        sw a0, 0(t0)            # store in p2_dir = 1
-    after_p2_set_up:
+    la a1, p2_dir
+    li t0, 1
+    call check_character
+
     li16 a0, 'k'
-    ecall 7
-    bnz a0, p2_set_down
-    j after_p2_set_down
-    p2_set_down:
-        la t0, p2_dir
-        li a0, -1
-        sw a0, 0(t0)            # store in p2_dir = -1
-    after_p2_set_down:
+    la a1, p2_dir
+    li t0, -1
+    call check_character
+
+    lw ra, 0(sp)        # restore ra
+    addi sp, 2
     ret
 
+check_character:
+    # Check if the character is pressed and store it in the input variable
+    # Input: a0 = character to check, a1 = input variable address, t0 = value to store if character is pressed
+    mv s0, a1
+    ecall 7 # Read character from keyboard
+    bnz a0, character_pressed
+    ret
+    character_pressed:
+        sw t0, 0(s0) # Store the value in the input variable
+        ret
 check_win:
     la t0, p1_score
     lb a0, 0(t0)            # load p1_score
@@ -233,14 +242,14 @@ check_win:
     ret
 
     p1_wins:
-    la a0, tiles_p1_won
-    call update_screen
-    ecall 10 # Exit the program
+        la a0, tiles_p1_won
+        call update_screen
+        ecall 10 # Exit the program
 
     p2_wins:
-    la a0, tiles_p2_won
-    call update_screen
-    ecall 10 # Exit the program
+        la a0, tiles_p2_won
+        call update_screen
+        ecall 10 # Exit the program
 
 update_screen:
     # Update the screen with input tiles
@@ -286,6 +295,37 @@ get_offset:
 
     ret
 
+paint_ball:
+    addi sp, -2
+    sw ra, 0(sp)        # save ra (x1)
+    #### Paint the new position of the ball ####
+    la t0, ball_pos_y
+    lbu a0, 0(t0)            # load ball_pos_y
+    call get_offset          # Get the offset for the tile map
+    la t0, ball_pos_x
+    lbu t1, 0(t0)            # load ball_pos_x
+    add a0, t1               # a0 = y_offset + ball_pos_x
+    la t0, tiles
+    add t0, a0               # t0 = &tiles[offset]
+    li a1, 1
+    sb a1, 0(t0)             # store 1 in tiles at the new position
+
+    #### Remove the old position of the ball ####
+    la t0, ball_old_pos_y
+    lbu a0, 0(t0)            # load ball_old_pos_y
+    call get_offset # Get the offset for the tile map
+    la t0, ball_old_pos_x
+    lbu t1, 0(t0)            # load ball_old_pos_x
+    add a0, t1              # a0 = y_offset + ball_old_pos_x
+    la t0, tiles
+    add t0, a0              # t0 = &tiles[offset]
+    li a1, 0
+    sb a1, 0(t0)            # store 0 in tiles at the old position
+
+    lw ra, 0(sp)        # restore ra
+    addi sp, 2           # restore stack pointer
+    ret
+
 move_ball:
     addi sp, -2
     sw ra, 0(sp)        # save ra (x1)
@@ -318,123 +358,97 @@ move_ball:
     add a0, a1
     sb a0, 0(t0)            # store new ball_pos_x    
 
-    
-    # change y direction if the ball hits the top or bottom wall
-    check_collision_y:
-        la t0, ball_pos_y
-        li t1, 14
-        lbu a0, 0(t0)            # load ball_pos_y
-        bz a0, neg_y_dir
-        beq a0, t1, neg_y_dir # if ball_pos_y == 14, negate the direction
-        j check_collision_x
-
-    neg_y_dir:
-        la t0, ball_dir_y
-        lbu t1, 0(t0)            # load ball_dir_y  
-        neg t1
-        sb t1, 0(t0)            # store negated ball_dir_y
-    
+        
     # change x direction if the ball hits the left or right wall
-    check_collision_x:
+    check_collision_with_left_right:
         la t0, ball_pos_x
         lbu a0, 0(t0)            # load ball_pos_x
         li t1, 19
-        bz a0, neg_x_dir_left
-        beq a0, t1, should_neg_x_dir_right  # if ball_pos_x == 19, negate the direction
+        bz a0, check_collision_with_p1
+        beq a0, t1, should_check_collision_with_p2  # if ball_pos_x == 19, negate the direction
+        j check_collision_with_top_bottom
+        should_check_collision_with_p2:
+            j check_collision_with_p2
 
-        j paint_ball
-    should_neg_x_dir_right:
-        j neg_x_dir_right
-
-        neg_x_dir_left:
-
+        check_collision_with_p1:
             la t0, ball_old_pos_y
             lbu t1, 0(t0)            # load ball_pos_y
             la t0, p1_pos
             lbu a0, 0(t0)            # load p1_pos
-            mv s0, a0
-            addi s0, 3            # s0 = p1_pos + 4
-            bge t1, a0, double_check_neg_x_dir_left_done     # if ball_pos_y >= p1_pos, negate the direction
+            bge t1, a0, check_collision_with_p1_continued     # if ball_pos_y >= p1_pos, check if it is within the paddle range
+            call paint_ball
             li a0, 1            # p2 scored
-            call check_score
-            j paint_ball
-            double_check_neg_x_dir_left_done:
-                blt t1, s0, neg_x_dir_left_done  # if ball_pos_y < p1_pos + 4, negate the direction
-                li a0, 1        # p2 scored
-                call check_score
-                j paint_ball
-            neg_x_dir_left_done:
-                la t0, ball_pos_x
-                lbu t1, 0(t0)            # load ball_pos_x
-                addi t1,2 
-                sb t1, 0(t0)            # store new ball_pos_x
-                la t0, ball_dir_x
-                lbu t1, 0(t0)            # load ball_dir_x
-                neg t1
-                sb t1, 0(t0)            # store negated ball_dir_x
-                j paint_ball
+            call score_player
+            j check_collision_with_top_bottom
+            check_collision_with_p1_continued:
+                addi a0, 4           # a0 = p1_pos + 3
+                blt t1, a0, negate_x_dir_p1  # if ball_pos_y < p1_pos + 3, negate the direction
+                call paint_ball
+                li a0, 1            # p2 scored
+                call score_player
+                j check_collision_with_top_bottom
+                negate_x_dir_p1:
+                    la t0, ball_pos_x
+                    lbu t1, 0(t0)           # Load ball_pos_x
+                    addi t1, 2              # Add 2 to ball_pos_x, to move the ball to the right
+                    sb t1, 0(t0)            # Store new ball_pos_x
+                    la t0, ball_dir_x
+                    lbu t1, 0(t0)           # Load ball_dir_x
+                    neg t1                  # Negate the ball_dir_x
+                    sb t1, 0(t0)            # Store negated ball_dir_x
+                    j check_collision_with_top_bottom
     
-        neg_x_dir_right:
-
+        check_collision_with_p2:
             la t0, ball_old_pos_y
             lbu t1, 0(t0)            # load ball_pos_y
             la t0, p2_pos
             lbu a0, 0(t0)            # load p1_pos
-            mv s0, a0
-            addi s0, 3           # s0 = p1_pos + 4
-            bge t1, a0, doubl_check_neg_x_dir_right_done     # if ball_pos_y >= p1_pos, negate the direction
-            li a0, 0        # p1 scored     
-            call check_score
-            j paint_ball
-            doubl_check_neg_x_dir_right_done:
-                blt t1, s0, neg_x_dir_right_done     # if ball_pos_y < p1_pos + 4, negate the direction
-                li a0, 0       # p1 scored  
-                call check_score
-                j paint_ball
-            neg_x_dir_right_done:
-                la t0, ball_pos_x
-                lbu t1, 0(t0)            # load ball_pos_x
-                addi t1, -2
-                sb t1, 0(t0)            # store new ball_pos_x
-                la t0, ball_dir_x
-                lbu t1, 0(t0)            # load ball_dir_x
+            bge t1, a0, check_collision_with_p2_continued     # if ball_pos_y >= p1_pos, check if it is within the paddle range
+            call paint_ball
+            li a0, 0            # p1 scored
+            call score_player
+            j check_collision_with_top_bottom
+            check_collision_with_p2_continued:
+                addi a0, 4           # a0 = p2_pos + 4
+                blt t1, a0, negate_x_dir_p2     # if ball_pos_y < p2_pos + 3, negate the direction
+                call paint_ball
+                li a0, 0            # p1 scored
+                call score_player
+                j check_collision_with_top_bottom
+                negate_x_dir_p2:
+                    la t0, ball_pos_x
+                    lbu t1, 0(t0)           # Load ball_pos_x
+                    addi t1, -2             # Subtract 2 to ball_pos_x, to move the ball to the left
+                    sb t1, 0(t0)            # Store new ball_pos_x
+                    la t0, ball_dir_x
+                    lbu t1, 0(t0)           # Load ball_dir_x
+                    neg t1                  # Negate the ball_dir_x
+                    sb t1, 0(t0)            # Store negated ball_dir_x
+        
+        # change y direction if the ball hits the top or bottom wall
+        check_collision_with_top_bottom:
+            la t0, ball_pos_y
+            li t1, 14
+            lbu a0, 0(t0)            # load ball_pos_y
+            bz a0, negate_y_dir
+            beq a0, t1, negate_y_dir # if ball_pos_y == 14, negate the direction
+            j move_ball_done
+
+            negate_y_dir:
+                la t0, ball_dir_y
+                lbu t1, 0(t0)            # load ball_dir_y  
                 neg t1
-                sb t1, 0(t0)            # store negated ball_dir_x
-                j paint_ball
+                sb t1, 0(t0)            # store negated ball_dir_y
+    
+        move_ball_done:
+            lw ra, 0(sp)        # restore ra
+            addi sp, 2
+            ret
 
-    paint_ball:
-        la t0, ball_pos_y
-        lbu a0, 0(t0)            # load ball_pos_y
-        call get_offset # Get the offset for the tile map
-        la t0, ball_pos_x
-        lbu t1, 0(t0)            # load ball_pos_x
-        add a0, t1              # a0 = y_offset + ball_pos_x
-        la t0, tiles
-        add t0, a0              # t0 = &tiles[offset]
-        li a1, 1
-        sb a1, 0(t0)            # store 1 in tiles at the new position
-
-        # Remove the old position of the ball
-        la t0, ball_old_pos_y
-        lbu a0, 0(t0)            # load ball_old_pos_y
-        call get_offset # Get the offset for the tile map
-        la t0, ball_old_pos_x
-        lbu t1, 0(t0)            # load ball_old_pos_x
-        add a0, t1              # a0 = y_offset + ball_old_pos_x
-        la t0, tiles
-        add t0, a0              # t0 = &tiles[offset]
-        li a1, 0
-        sb a1, 0(t0)            # store 0 in tiles at the old position
-        j move_ball_done
-
-
-    move_ball_done:
-        lw ra, 0(sp)        # restore ra
-        addi sp, 2
-        ret
-
-
-check_score:    # if a0 = 0, then no score, if a0 = 1, then player 1 scored, if a0 = 2, then player 2 scored
+score_player:
+    # This function is used to update the score of the player, and display the score on the screen
+    # Input: a0 = player number (0 or 1)
+    # Output: None, but updates the score on the screen and waits for a space to continue
     addi sp, -2
     sw ra, 0(sp)
     # Move current ball position to old position
@@ -442,9 +456,11 @@ check_score:    # if a0 = 0, then no score, if a0 = 1, then player 1 scored, if 
     bz a0, p1_scored
     li t0, 1    # t0 = 1, means player 2 scored
     beq a0, t0, should_p2_scored
+
     lw ra, 0(sp)
     addi sp, 2
     ret
+
     should_p2_scored:
         j p2_scored
     p1_scored:
@@ -453,49 +469,64 @@ check_score:    # if a0 = 0, then no score, if a0 = 1, then player 1 scored, if 
         addi s0, 1              # p1_score++
         
         sb s0, 0(t0)            # store new p1_score
-        j count_loop
+        j draw_score_screen
     p2_scored:
         la t0, p2_score
         lb s0, 0(t0)            # load p2_score
         addi s0, 1              # p2_score++
         sb s0, 0(t0)            # store new p2_score
-        j count_loop
-    count_loop:
-        la t0, counter
-        la t1, max_counter
-        lw s0, 0(t0)            # load counter
-        lw t1, 0(t1)            # load max_counter
-        addi s0, 1        # counter++
-        sw s0, 0(t0)            # store new counter value
-        blt s0, t1, count_loop
+    
+    draw_score_screen:
+        la a0, tiles_score_0_0
+        call update_screen
 
-
-    la t0, counter
-    lw s0, 0(t0)            # load counter
-    li s0, 0
-    sw s0, 0(t0)            # reset counter to 0
-
+    call check_win
 
     # reset the ball position
     la t0, ball_pos_y
-    li a0, 7    
-    sb a0, 0(t0)            # store new ball_pos_y
+    li t1, 7    
+    sb t1, 0(t0)            # store new ball_pos_y
     la t0, ball_pos_x
-    li a0, 11
-    sb a0, 0(t0)            # store new ball_pos_x
+    li t1, 9
+    sb t1, 0(t0)            # store new ball_pos_x
+
+    # Reset previous ball position
+    la t0, ball_old_pos_y
+    li t1, 7
+    sb t1, 0(t0)            # store new ball_old_pos_y
+    la t0, ball_old_pos_x
+    li t1, 9
+    sb t1, 0(t0)            # store new ball_old_pos_x
+
 
     # reset the ball direction
     la t0, ball_dir_y
-    lb t1, 0(t0)            # load ball_dir_y
-    neg t1
+    li t1, 1
     sb t1, 0(t0)            # store new ball_dir_y
     la t0, ball_dir_x
-    lb t1, 0(t0)            # load ball_dir_x
-    neg t1
-    sb t1, 0(t0)            # store new ball_dir_x
+    sb t1, 0(t0)            # store new ball_dir_x 
     
-    ret
+    # Reset the player positions
+    la t0, p1_pos
+    li t1, 6
+    sb t1, 0(t0)            # store new p1_pos
+    la t0, p2_pos
+    sb t1, 0(t0)            # store new p2_pos
 
+    # Reset the player directions
+    la t0, p1_dir
+    li t1, 0
+    sw t1, 0(t0)            # store new p1_dir
+    la t0, p2_dir
+    sw t1, 0(t0)            # store new p2_dir
+
+    # Draw initial game screen
+    la a0, tiles_initial_game
+    call update_screen
+
+    lw ra, 0(sp)
+    addi sp, 2
+    ret
 
 .data
 counter:
@@ -515,9 +546,9 @@ p2_pos:
 p2_dir:
     .word 0         # 1 for up, -1 for down
 ball_pos_y:
-    .byte 2     # Default position of the ball (min = 0, max = 14)
+    .byte 7     # Default position of the ball (min = 0, max = 14)
 ball_pos_x:
-    .byte 2 # Default position of the ball (min = 0, max = 19)
+    .byte 9 # Default position of the ball (min = 0, max = 19)
 ball_old_pos_y:
     .byte 7 # Old position of the ball (min = 0, max = 14)
 ball_old_pos_x:
@@ -561,30 +592,59 @@ tiles_p2_won:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-
+tiles_initial_game:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3
+    .byte 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3
+    .byte 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+tiles_score_0_0:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0
+    .byte 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0
+    .byte 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0
+    .byte 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0
+    .byte 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 
 
 .org 0xF000
 tiles:
+    .byte 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1
+    .byte 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0
+    .byte 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1
+    .byte 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1
+    .byte 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1
+    .byte 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0
+    .byte 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1
+    .byte 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0
+    .byte 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3
-    .byte 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3
-    .byte 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-
+    .byte 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5
 .org 0xF200
-
 tile0_data:    
     .fill 128,1,0x00 
 # Ball tiles
