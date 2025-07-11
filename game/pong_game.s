@@ -16,8 +16,6 @@ main:
     call check_win
     j main
 
-
-
 move_p1:
     addi sp, -2
     sw ra, 0(sp)        # save ra (x1)
@@ -234,15 +232,15 @@ check_win:
     beq a1, t1, p2_wins
     ret
 
-p1_wins:
-la a0, tiles_p1_won
-call update_screen
-ecall 10 # Exit the program
+    p1_wins:
+    la a0, tiles_p1_won
+    call update_screen
+    ecall 10 # Exit the program
 
-p2_wins:
-la a0, tiles_p2_won
-call update_screen
-ecall 10 # Exit the program
+    p2_wins:
+    la a0, tiles_p2_won
+    call update_screen
+    ecall 10 # Exit the program
 
 update_screen:
     # Update the screen with input tiles
@@ -320,134 +318,120 @@ move_ball:
     add a0, a1
     sb a0, 0(t0)            # store new ball_pos_x    
 
-    ###### Paint the ball in the tile map ########
-
-    # cheking Check_collision
     
-    check_collision_y:
     # change y direction if the ball hits the top or bottom wall
-    la t0, ball_pos_y
-    li t1, 14
-    lbu a0, 0(t0)            # load ball_pos_y
-    bz a0, neg_y_dir
-    beq a0, t1, neg_y_dir # if ball_pos_y == 14, negate the direction
+    check_collision_y:
+        la t0, ball_pos_y
+        li t1, 14
+        lbu a0, 0(t0)            # load ball_pos_y
+        bz a0, neg_y_dir
+        beq a0, t1, neg_y_dir # if ball_pos_y == 14, negate the direction
+        j check_collision_x
 
-    j check_collision_x
-neg_y_dir:
-    la t0, ball_dir_y
-    lbu t1, 0(t0)            # load ball_dir_y  
-    neg t1
-    sb t1, 0(t0)            # store negated ball_dir_y
-
-check_collision_x:
+    neg_y_dir:
+        la t0, ball_dir_y
+        lbu t1, 0(t0)            # load ball_dir_y  
+        neg t1
+        sb t1, 0(t0)            # store negated ball_dir_y
+    
     # change x direction if the ball hits the left or right wall
-    la t0, ball_pos_x
-    lbu a0, 0(t0)            # load ball_pos_x
-    li t1, 19
-    bz a0, neg_x_dir_left
-    beq a0, t1, should_neg_x_dir_right  # if ball_pos_x == 19, negate the direction
+    check_collision_x:
+        la t0, ball_pos_x
+        lbu a0, 0(t0)            # load ball_pos_x
+        li t1, 19
+        bz a0, neg_x_dir_left
+        beq a0, t1, should_neg_x_dir_right  # if ball_pos_x == 19, negate the direction
 
-    j paint_ball
-should_neg_x_dir_right:
-    j neg_x_dir_right
+        j paint_ball
+    should_neg_x_dir_right:
+        j neg_x_dir_right
 
-neg_x_dir_left:
+        neg_x_dir_left:
 
-    la t0, ball_old_pos_y
-    lbu t1, 0(t0)            # load ball_pos_y
-    la t0, p1_pos
-    lbu a0, 0(t0)            # load p1_pos
-    mv s0, a0
-    addi s0, 3            # s0 = p1_pos + 4
-    bge t1, a0, double_check_neg_x_dir_left_done     # if ball_pos_y >= p1_pos, negate the direction
-    li a0, 1            # p2 scored
-    call check_score
-    j paint_ball
-    #j Game_over
-double_check_neg_x_dir_left_done:
-    blt t1, s0, neg_x_dir_left_done  # if ball_pos_y < p1_pos + 4, negate the direction
-    li a0, 1        # p2 scored
-    call check_score
-    j paint_ball
-    #j Game_over
-neg_x_dir_left_done:
-
-    la t0, ball_pos_x
-    lbu t1, 0(t0)            # load ball_pos_x
-    addi t1,2 
-    sb t1, 0(t0)            # store new ball_pos_x
-    la t0, ball_dir_x
-    lbu t1, 0(t0)            # load ball_dir_x
-    neg t1
-    sb t1, 0(t0)            # store negated ball_dir_x
-    j paint_ball
+            la t0, ball_old_pos_y
+            lbu t1, 0(t0)            # load ball_pos_y
+            la t0, p1_pos
+            lbu a0, 0(t0)            # load p1_pos
+            mv s0, a0
+            addi s0, 3            # s0 = p1_pos + 4
+            bge t1, a0, double_check_neg_x_dir_left_done     # if ball_pos_y >= p1_pos, negate the direction
+            li a0, 1            # p2 scored
+            call check_score
+            j paint_ball
+            double_check_neg_x_dir_left_done:
+                blt t1, s0, neg_x_dir_left_done  # if ball_pos_y < p1_pos + 4, negate the direction
+                li a0, 1        # p2 scored
+                call check_score
+                j paint_ball
+            neg_x_dir_left_done:
+                la t0, ball_pos_x
+                lbu t1, 0(t0)            # load ball_pos_x
+                addi t1,2 
+                sb t1, 0(t0)            # store new ball_pos_x
+                la t0, ball_dir_x
+                lbu t1, 0(t0)            # load ball_dir_x
+                neg t1
+                sb t1, 0(t0)            # store negated ball_dir_x
+                j paint_ball
     
-  ####################  
-neg_x_dir_right:
+        neg_x_dir_right:
 
-    la t0, ball_old_pos_y
-    lbu t1, 0(t0)            # load ball_pos_y
-    la t0, p2_pos
-    lbu a0, 0(t0)            # load p1_pos
-    mv s0, a0
-    addi s0, 3           # s0 = p1_pos + 4
-    bge t1, a0, doubl_check_neg_x_dir_right_done     # if ball_pos_y >= p1_pos, negate the direction
-    li a0, 0        # p1 scored     
-    call check_score
-    j paint_ball
-    #j Game_over
+            la t0, ball_old_pos_y
+            lbu t1, 0(t0)            # load ball_pos_y
+            la t0, p2_pos
+            lbu a0, 0(t0)            # load p1_pos
+            mv s0, a0
+            addi s0, 3           # s0 = p1_pos + 4
+            bge t1, a0, doubl_check_neg_x_dir_right_done     # if ball_pos_y >= p1_pos, negate the direction
+            li a0, 0        # p1 scored     
+            call check_score
+            j paint_ball
+            doubl_check_neg_x_dir_right_done:
+                blt t1, s0, neg_x_dir_right_done     # if ball_pos_y < p1_pos + 4, negate the direction
+                li a0, 0       # p1 scored  
+                call check_score
+                j paint_ball
+            neg_x_dir_right_done:
+                la t0, ball_pos_x
+                lbu t1, 0(t0)            # load ball_pos_x
+                addi t1, -2
+                sb t1, 0(t0)            # store new ball_pos_x
+                la t0, ball_dir_x
+                lbu t1, 0(t0)            # load ball_dir_x
+                neg t1
+                sb t1, 0(t0)            # store negated ball_dir_x
+                j paint_ball
 
-doubl_check_neg_x_dir_right_done:
-    blt t1, s0, neg_x_dir_right_done     # if ball_pos_y < p1_pos + 4, negate the direction
-    li a0, 0       # p1 scored  
-    call check_score
-    j paint_ball
-    #j Game_over
-neg_x_dir_right_done:
+    paint_ball:
+        la t0, ball_pos_y
+        lbu a0, 0(t0)            # load ball_pos_y
+        call get_offset # Get the offset for the tile map
+        la t0, ball_pos_x
+        lbu t1, 0(t0)            # load ball_pos_x
+        add a0, t1              # a0 = y_offset + ball_pos_x
+        la t0, tiles
+        add t0, a0              # t0 = &tiles[offset]
+        li a1, 1
+        sb a1, 0(t0)            # store 1 in tiles at the new position
 
-    la t0, ball_pos_x
-    lbu t1, 0(t0)            # load ball_pos_x
-    addi t1, -2
-    sb t1, 0(t0)            # store new ball_pos_x
-    la t0, ball_dir_x
-    lbu t1, 0(t0)            # load ball_dir_x
-    neg t1
-    sb t1, 0(t0)            # store negated ball_dir_x
-    j paint_ball
-
-
-
-    
-paint_ball:
-    la t0, ball_pos_y
-    lbu a0, 0(t0)            # load ball_pos_y
-    call get_offset # Get the offset for the tile map
-    la t0, ball_pos_x
-    lbu t1, 0(t0)            # load ball_pos_x
-    add a0, t1              # a0 = y_offset + ball_pos_x
-    la t0, tiles
-    add t0, a0              # t0 = &tiles[offset]
-    li a1, 1
-    sb a1, 0(t0)            # store 1 in tiles at the new position
-
-    # Remove the old position of the ball
-    la t0, ball_old_pos_y
-    lbu a0, 0(t0)            # load ball_old_pos_y
-    call get_offset # Get the offset for the tile map
-    la t0, ball_old_pos_x
-    lbu t1, 0(t0)            # load ball_old_pos_x
-    add a0, t1              # a0 = y_offset + ball_old_pos_x
-    la t0, tiles
-    add t0, a0              # t0 = &tiles[offset]
-    li a1, 0
-    sb a1, 0(t0)            # store 0 in tiles at the old position
-    j move_ball_done
+        # Remove the old position of the ball
+        la t0, ball_old_pos_y
+        lbu a0, 0(t0)            # load ball_old_pos_y
+        call get_offset # Get the offset for the tile map
+        la t0, ball_old_pos_x
+        lbu t1, 0(t0)            # load ball_old_pos_x
+        add a0, t1              # a0 = y_offset + ball_old_pos_x
+        la t0, tiles
+        add t0, a0              # t0 = &tiles[offset]
+        li a1, 0
+        sb a1, 0(t0)            # store 0 in tiles at the old position
+        j move_ball_done
 
 
-move_ball_done:
-    lw ra, 0(sp)        # restore ra
-    addi sp, 2
-    ret
+    move_ball_done:
+        lw ra, 0(sp)        # restore ra
+        addi sp, 2
+        ret
 
 
 check_score:    # if a0 = 0, then no score, if a0 = 1, then player 1 scored, if a0 = 2, then player 2 scored
@@ -461,29 +445,29 @@ check_score:    # if a0 = 0, then no score, if a0 = 1, then player 1 scored, if 
     lw ra, 0(sp)
     addi sp, 2
     ret
-should_p2_scored:
-    j p2_scored
-p1_scored:
-    la t0, p1_score
-    lb s0, 0(t0)            # load p1_score
-    addi s0, 1              # p1_score++
-    
-    sb s0, 0(t0)            # store new p1_score
-    j count_loop
-p2_scored:
-    la t0, p2_score
-    lb s0, 0(t0)            # load p2_score
-    addi s0, 1              # p2_score++
-    sb s0, 0(t0)            # store new p2_score
-    j count_loop
-count_loop:
-    la t0, counter
-    la t1, max_counter
-    lw s0, 0(t0)            # load counter
-    lw t1, 0(t1)            # load max_counter
-    addi s0, 1        # counter++
-    sw s0, 0(t0)            # store new counter value
-    blt s0, t1, count_loop
+    should_p2_scored:
+        j p2_scored
+    p1_scored:
+        la t0, p1_score
+        lb s0, 0(t0)            # load p1_score
+        addi s0, 1              # p1_score++
+        
+        sb s0, 0(t0)            # store new p1_score
+        j count_loop
+    p2_scored:
+        la t0, p2_score
+        lb s0, 0(t0)            # load p2_score
+        addi s0, 1              # p2_score++
+        sb s0, 0(t0)            # store new p2_score
+        j count_loop
+    count_loop:
+        la t0, counter
+        la t1, max_counter
+        lw s0, 0(t0)            # load counter
+        lw t1, 0(t1)            # load max_counter
+        addi s0, 1        # counter++
+        sw s0, 0(t0)            # store new counter value
+        blt s0, t1, count_loop
 
 
     la t0, counter
@@ -511,6 +495,7 @@ count_loop:
     sb t1, 0(t0)            # store new ball_dir_x
     
     ret
+
 
 .data
 counter:
@@ -561,7 +546,6 @@ tiles_p1_won:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 tiles_p2_won:
-# background tiles
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -601,7 +585,8 @@ tiles:
 
 .org 0xF200
 
-tile0_data:    .fill 128,1,0x00 
+tile0_data:    
+    .fill 128,1,0x00 
 # Ball tiles
 tile1_data:        
     .byte 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x00
@@ -765,12 +750,18 @@ tile9_data:
     .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
     .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
     .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11  
-tile10_data:   .fill 128,1,0xAA   
-tile11_data:   .fill 128,1,0xBB   
-tile12_data:   .fill 128,1,0xCC   
-tile13_data:   .fill 128,1,0xDD   
-tile14_data:   .fill 128,1,0xEE   
-tile15_data:   .fill 128,1,0xFF   
+tile10_data:   
+    .fill 128,1,0xAA   
+tile11_data:   
+    .fill 128,1,0xBB   
+tile12_data:   
+    .fill 128,1,0xCC   
+tile13_data:   
+    .fill 128,1,0xDD   
+tile14_data:   
+    .fill 128,1,0xEE   
+tile15_data:   
+    .fill 128,1,0xFF   
 
 .org 0xFA00
 palette_data:
