@@ -8,11 +8,11 @@ j main
 .org 0x0020
 main:
     li16 sp, STACK_TOP # Initialize stack pointer
-    # title_screen_loop:
-    #     li16 a0, 32 # Space key
-    #     ecall 7 # Read character from keyboard
-    #     bnz a0, draw_initial_game # If space is pressed, draw the initial game screen
-    #     j title_screen_loop
+    title_screen_loop:
+        li16 a0, 32 # Space key
+        ecall 7 # Read character from keyboard
+        bnz a0, draw_initial_game # If space is pressed, draw the initial game screen
+        j title_screen_loop
     draw_initial_game:
         la a0, tiles_initial_game
         call update_screen
@@ -40,7 +40,7 @@ move_p1:
         j p1_move_down
     p1_move_up:
         la t0, p1_pos
-        lbu a0, 0(t0)            # load p1_pos
+        lw a0, 0(t0)            # load p1_pos
         li s0, 0
         bz a0, p1_move_up_nothing # if p1_pos == 0, do nothing
         j after_p1_move_up_nothing
@@ -48,7 +48,7 @@ move_p1:
         j p1_move_done
         after_p1_move_up_nothing:
             addi a0, -1             # p1_pos = p1_pos - 1
-            sb a0, 0(t0)            # store new position in p1_pos
+            sw a0, 0(t0)            # store new position in p1_pos
             call get_offset # Get the offset for the tile map
             la t0, tiles
             add t0, a0              # t0 = &tiles[offset]
@@ -57,7 +57,7 @@ move_p1:
             # Remove the old position of player 1 that is p1_pos + 4
             # Load the old position into a0
             la t0, p1_pos
-            lbu a0, 0(t0)            # load p1_pos
+            lw a0, 0(t0)            # load p1_pos
             addi a0, 3              # a0 = p1_pos + 3
             call get_offset # Get the offset for the tile map
             la t0, tiles
@@ -69,7 +69,7 @@ move_p1:
 
     p1_move_down:
         la t0, p1_pos
-        lbu a0, 0(t0)            # load p1_pos
+        lw a0, 0(t0)            # load p1_pos
         li s0, 12
         beq a0, s0, p1_move_down_nothing # if p1_pos == 0, do nothing
         j after_p1_move_down_nothing
@@ -77,7 +77,7 @@ move_p1:
         j p1_move_done
         after_p1_move_down_nothing:
             addi a0, 1             # p1_pos = p1_pos + 1
-            sb a0, 0(t0)            # store new position in p1_pos
+            sw a0, 0(t0)            # store new position in p1_pos
 
             # We will highlight with white the position that is p1_pos + 3
             addi a0, 2
@@ -90,7 +90,7 @@ move_p1:
             # Remove the old position of player 1 that is p1_pos - 1
             # Load the old position into a0
             la t0, p1_pos
-            lbu a0, 0(t0)            # load p1_pos
+            lw a0, 0(t0)            # load p1_pos
             addi a0, -1              # a0 = p1_pos -1
             call get_offset # Get the offset for the tile map
             la t0, tiles
@@ -122,14 +122,14 @@ move_p2:
         j p2_move_down
     p2_move_up:
         la t0, p2_pos
-        lbu a0, 0(t0)            # load a0 = p2_pos
+        lw a0, 0(t0)            # load a0 = p2_pos
         bz a0, p2_move_up_nothing # if p2_pos == 0, do nothing
         j after_p2_move_up_nothing
         p2_move_up_nothing:
         j p2_move_done
         after_p2_move_up_nothing:
             addi a0, -1             # p2_pos = p2_pos - 1
-            sb a0, 0(t0)            # store new position in p1_pos
+            sw a0, 0(t0)            # store new position in p1_pos
             call get_offset         # Get the offset for the tile map
             addi a0, 19             # The player 2 offset
             la t0, tiles
@@ -139,7 +139,7 @@ move_p2:
             # Remove the old position of player 1 that is p1_pos + 4
             # Load the old position into a0
             la t0, p2_pos
-            lbu a0, 0(t0)            # load p2_pos
+            lw a0, 0(t0)            # load p2_pos
             addi a0, 3              # a0 = p2_pos + 3
             call get_offset # Get the offset for the tile map
             addi a0, 19             # The player 2 offset
@@ -152,7 +152,7 @@ move_p2:
 
     p2_move_down:
         la t0, p2_pos
-        lbu a0, 0(t0)            # load p2_pos
+        lw a0, 0(t0)            # load p2_pos
         li s0, 12
         beq a0, s0, p2_move_down_nothing # if p2_pos == 0, do nothing
         j after_p2_move_down_nothing
@@ -160,7 +160,7 @@ move_p2:
         j p2_move_done
         after_p2_move_down_nothing:
             addi a0, 1             # p2_pos = p2_pos + 1
-            sb a0, 0(t0)            # store new position in p2_pos
+            sw a0, 0(t0)            # store new position in p2_pos
 
             # We will highlight with white the position that is p2_pos + 2
             addi a0, 2
@@ -174,7 +174,7 @@ move_p2:
             # Remove the old position of player 1 that is p2_pos - 1
             # Load the old position into a0
             la t0, p2_pos
-            lbu a0, 0(t0)            # load p2_pos
+            lw a0, 0(t0)            # load p2_pos
             addi a0, -1              # a0 = p2_pos -1
             call get_offset # Get the offset for the tile map
             addi a0, 19
@@ -250,51 +250,7 @@ check_win:
         la a0, tiles_p2_won
         call update_screen
         ecall 10 # Exit the program
-
-update_screen:
-    # Update the screen with input tiles
-    # Input: a0 = address of the tiles
-    li16 s0, 300 # Number of tiles in the tile map (15 rows * 20 columns)
-    li t0, 0
-    la t1, tiles             # destination pointer
-    update_screen_loop:
-        beq t0, s0, exit_update_screen_loop # if t0 == 300, exit loop
-        lbu a1, 0(a0)
-        sb a1, 0(t1)
-        addi a0, 1
-        addi t1, 1
-        addi t0, 1
-        j update_screen_loop
-    exit_update_screen_loop:
-        ret
         
-get_offset: 
-    # Get the offset for the tile map based on player's y position
-    # Input: a0 = player's y position
-    # Output: a0 = offset in tile map
-    # There is no multiplication instruction, so we use addition, also we only have access to t0, t1
-    # Save the return address, s0, t0, and t1 on the stack
-
-    addi sp, -6
-    sw ra, 4(sp)        # save ra
-    sw t1, 2(sp)         # save t1
-    sw t0, 0(sp)         # save t0
-
-    mv t0, a0          # Move player's y position to t0
-    slli t0, 4
-    mv t1, a0
-    slli t1, 2
-    add t0, t1
-    mv a0, t0
-
-    # Restore the return address, ra, t0, and t1 from the stack
-    lw ra, 4(sp)        # restore ra
-    lw t1, 2(sp)         # restore t1
-    lw t0, 0(sp)         # restore t0
-    addi sp, 6       # restore stack pointer
-
-    ret
-
 paint_ball:
     addi sp, -2
     sw ra, 0(sp)        # save ra (x1)
@@ -324,6 +280,50 @@ paint_ball:
 
     lw ra, 0(sp)        # restore ra
     addi sp, 2           # restore stack pointer
+    ret
+
+update_screen:
+    # Update the screen with input tiles
+    # Input: a0 = address of the tiles
+    li16 s0, 300 # Number of tiles in the tile map (15 rows * 20 columns)
+    li t0, 0
+    la t1, tiles             # destination pointer
+    update_screen_loop:
+        beq t0, s0, exit_update_screen_loop # if t0 == 300, exit loop
+        lbu a1, 0(a0)
+        sb a1, 0(t1)
+        addi a0, 1
+        addi t1, 1
+        addi t0, 1
+        j update_screen_loop
+    exit_update_screen_loop:
+        ret
+
+get_offset: 
+    # Get the offset for the tile map based on player's y position
+    # Input: a0 = player's y position
+    # Output: a0 = offset in tile map
+    # There is no multiplication instruction, so we use addition, also we only have access to t0, t1
+    # Save the return address, s0, t0, and t1 on the stack
+
+    addi sp, -6
+    sw ra, 4(sp)        # save ra
+    sw t1, 2(sp)         # save t1
+    sw t0, 0(sp)         # save t0
+
+    mv t0, a0          # Move player's y position to t0
+    slli t0, 4
+    mv t1, a0
+    slli t1, 2
+    add t0, t1
+    mv a0, t0
+
+    # Restore the return address, ra, t0, and t1 from the stack
+    lw ra, 4(sp)        # restore ra
+    lw t1, 2(sp)         # restore t1
+    lw t0, 0(sp)         # restore t0
+    addi sp, 6       # restore stack pointer
+
     ret
 
 move_ball:
@@ -374,14 +374,15 @@ move_ball:
             la t0, ball_old_pos_y
             lbu t1, 0(t0)            # load ball_pos_y
             la t0, p1_pos
-            lbu a0, 0(t0)            # load p1_pos
+            lw a0, 0(t0)            # load p1_pos
+            addi a0, -1
             bge t1, a0, check_collision_with_p1_continued     # if ball_pos_y >= p1_pos, check if it is within the paddle range
             call paint_ball
             li a0, 1            # p2 scored
             call score_player
             j check_collision_with_top_bottom
             check_collision_with_p1_continued:
-                addi a0, 4           # a0 = p1_pos + 3
+                addi a0, 5           # a0 = p1_pos + 3
                 blt t1, a0, negate_x_dir_p1  # if ball_pos_y < p1_pos + 3, negate the direction
                 call paint_ball
                 li a0, 1            # p2 scored
@@ -402,14 +403,15 @@ move_ball:
             la t0, ball_old_pos_y
             lbu t1, 0(t0)            # load ball_pos_y
             la t0, p2_pos
-            lbu a0, 0(t0)            # load p1_pos
+            lw a0, 0(t0)            # load p1_pos
+            addi a0, -1
             bge t1, a0, check_collision_with_p2_continued     # if ball_pos_y >= p1_pos, check if it is within the paddle range
             call paint_ball
             li a0, 0            # p1 scored
             call score_player
             j check_collision_with_top_bottom
             check_collision_with_p2_continued:
-                addi a0, 4           # a0 = p2_pos + 4
+                addi a0, 5           # a0 = p2_pos + 4
                 blt t1, a0, negate_x_dir_p2     # if ball_pos_y < p2_pos + 3, negate the direction
                 call paint_ball
                 li a0, 0            # p1 scored
@@ -436,7 +438,7 @@ move_ball:
 
             negate_y_dir:
                 la t0, ball_dir_y
-                lbu t1, 0(t0)            # load ball_dir_y  
+                lb t1, 0(t0)            # load ball_dir_y  
                 neg t1
                 sb t1, 0(t0)            # store negated ball_dir_y
     
@@ -457,9 +459,7 @@ score_player:
     li t0, 1    # t0 = 1, means player 2 scored
     beq a0, t0, should_p2_scored
 
-    lw ra, 0(sp)
-    addi sp, 2
-    ret
+    j score_player_done
 
     should_p2_scored:
         j p2_scored
@@ -477,8 +477,34 @@ score_player:
         sb s0, 0(t0)            # store new p2_score
     
     draw_score_screen:
-        la a0, tiles_score_0_0
+        # Clear Screen
+        la a0, tiles_clear
         call update_screen
+
+        la t1, p1_score
+        lb t0, 0(t1)            # t0 = load p1_score
+
+        # Draw Player 1 Score
+        mv a0, t0 # a0 = p1_score
+        li a1, 0  # a1 = player number (0 for p1, 1 for p2)
+        call draw_digit
+
+        la t1, p2_score
+        lb t0, 0(t1)            # t0 = load p2_score
+
+        # Draw Player 2 Score
+        mv a0, t0 # a0 = p2_score
+        li a1, 1 # a1 = player number (0 for p1, 1 for p2)
+        call draw_digit
+
+        
+    draw_score_screen_done:
+    li16 t0, 1000
+    score_player_sleep_loop:
+        bz t0, score_player_sleep_loop_done
+        addi t0, -1
+        j score_player_sleep_loop
+    score_player_sleep_loop_done:
 
     call check_win
 
@@ -509,9 +535,9 @@ score_player:
     # Reset the player positions
     la t0, p1_pos
     li t1, 6
-    sb t1, 0(t0)            # store new p1_pos
+    sw t1, 0(t0)            # store new p1_pos
     la t0, p2_pos
-    sb t1, 0(t0)            # store new p2_pos
+    sw t1, 0(t0)            # store new p2_pos
 
     # Reset the player directions
     la t0, p1_dir
@@ -524,9 +550,107 @@ score_player:
     la a0, tiles_initial_game
     call update_screen
 
+    score_player_done:
     lw ra, 0(sp)
     addi sp, 2
     ret
+
+draw_digit:
+    # Draws a digit on the screen
+    # Input: a0 = digit (0-3), a1 = player number (0 or 1)
+    addi sp, -2
+    sw ra, 0(sp)        # save ra
+
+    li s0, 0
+    beq a0, s0, should_draw_digit_0
+    j after_should_draw_digit_0
+    should_draw_digit_0:
+        j draw_digit_0
+    after_should_draw_digit_0:
+    li s0, 1
+    beq a0, s0, should_draw_digit_1
+    j after_should_draw_digit_1
+    should_draw_digit_1:
+        j draw_digit_1
+    after_should_draw_digit_1:
+    li s0, 2
+    beq a0, s0, should_draw_digit_2
+    j after_should_draw_digit_2
+    should_draw_digit_2:
+        j draw_digit_2
+    after_should_draw_digit_2:
+    li s0, 3
+    beq a0, s0, should_draw_digit_3
+    j after_should_draw_digit_3
+    should_draw_digit_3:
+        j draw_digit_3
+    after_should_draw_digit_3:
+    j draw_digit_done
+    
+    draw_digit_0:
+        li s0, 0
+        beq a1, s0, draw_digit_0_p1
+        draw_digit_0_p2:
+            la t1, tiles_score_0_p2
+            j draw_digit_screen
+        draw_digit_0_p1:
+            la t1, tiles_score_0_p1
+            j draw_digit_screen
+    draw_digit_1:
+        li s0, 0
+        beq a1, s0, draw_digit_1_p1
+        draw_digit_1_p2:
+            la t1, tiles_score_1_p2
+            j draw_digit_screen
+        draw_digit_1_p1:
+            la t1, tiles_score_1_p1
+            j draw_digit_screen
+
+    draw_digit_2:
+        li s0, 0
+        beq a1, s0, draw_digit_2_p1
+        draw_digit_2_p2:
+            la t1, tiles_score_2_p2
+            j draw_digit_screen
+        draw_digit_2_p1:
+            la t1, tiles_score_2_p1
+            j draw_digit_screen
+
+    draw_digit_3:
+        li s0, 0
+        beq a1, s0, draw_digit_3_p1
+        draw_digit_3_p2:
+            la t1, tiles_score_3_p2
+            j draw_digit_screen
+        draw_digit_3_p1:
+            la t1, tiles_score_3_p1
+            j draw_digit_screen
+
+    draw_digit_screen:
+        mv a0, t1 # a0 = address of the tiles to draw
+        li16 s0, 300 # Number of tiles in the tile map (15 rows * 20 columns)
+        li t0, 0
+        la t1, tiles             # destination pointer
+        draw_digit_loop:
+            beq t0, s0, should_draw_digit_done # if t0 == 300, exit loop
+            j after_should_draw_digit_done
+            should_draw_digit_done:
+                j draw_digit_done
+            after_should_draw_digit_done:
+            lbu a1, 0(a0)
+            bz a1, draw_digit_skip_byte
+            sb a1, 0(t1)
+            draw_digit_skip_byte:
+            addi a0, 1
+            addi t1, 1
+            addi t0, 1
+            j draw_digit_loop
+    draw_digit_done:
+        lw ra, 0(sp)        # restore ra
+        addi sp, 2          # restore stack pointer
+        ret
+
+
 
 .data
 counter:
@@ -536,13 +660,13 @@ max_counter:
 p1_dir:
     .word 0     # 1 for up, -1 for down
 p1_pos:
-    .byte 6 # Default position of player 1 (min = 0, max = 14)
+    .word 6 # Default position of player 1 (min = 0, max = 14)
 p1_score:
     .byte 0 # Default score of player 1 (min = 0, max = 255)    
 p2_score:
     .byte 0 # Default score of player 2 (min = 0, max = 255)
 p2_pos:
-    .byte 6 # Default position of player 2 (min = 0, max = 14)
+    .word 6 # Default position of player 2 (min = 0, max = 14)
 p2_dir:
     .word 0         # 1 for up, -1 for down
 ball_pos_y:
@@ -559,35 +683,49 @@ ball_dir_x:
     .byte 1 # 1 for right, -1 for left
 
 tiles_p1_won:
-
-    # '|' = 4, '_' = 5, '\' = 6  '/' = 7
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 5, 5, 5, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 5, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 5, 5, 5, 0, 0, 0, 5, 0, 5, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 5, 5, 5, 5, 5, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 4, 5, 8, 7, 8, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0
-    .byte 0, 0, 0, 4, 0, 8, 0, 8, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0
-    .byte 0, 0, 0, 4, 5, 0, 0, 8, 0, 0, 6, 0, 0, 0, 0, 0, 0, 7, 0, 0
-    .byte 0, 0, 0, 4, 0, 0, 0, 8, 0, 0, 4, 0, 0, 7, 6, 0, 0, 8, 0, 0
-    .byte 0, 0, 0, 4, 0, 0, 0, 8, 0, 0, 0, 6, 7, 0, 0, 6, 7, 0, 0, 0
-    .byte 0, 0, 0, 4, 0, 0, 0, 8, 0, 0, 0, 4, 0, 0, 0, 0, 8, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 5, 0, 0, 5, 5, 0, 0, 5, 0, 0
+    .byte 0, 0, 5, 0, 0, 0, 5, 0, 0, 5, 0, 5, 0, 5, 0, 5, 0, 5, 0, 0
+    .byte 0, 0, 5, 0, 5, 0, 5, 0, 0, 5, 0, 5, 0, 5, 0, 5, 0, 5, 0, 0
+    .byte 0, 0, 0, 5, 0, 5, 0, 0, 0, 0, 5, 0, 0, 5, 0, 0, 5, 5, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 tiles_p2_won:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 6, 6, 6, 6, 0, 6, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 6, 0, 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 6, 6, 6, 6, 0, 0, 0, 0, 6, 6, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 6, 0, 0, 0, 0, 0, 6, 0, 0, 6, 0, 0, 6, 6, 0, 0, 6, 0, 0
+    .byte 0, 0, 6, 0, 0, 0, 6, 0, 0, 6, 0, 6, 0, 6, 0, 6, 0, 6, 0, 0
+    .byte 0, 0, 6, 0, 6, 0, 6, 0, 0, 6, 0, 6, 0, 6, 0, 6, 0, 6, 0, 0
+    .byte 0, 0, 0, 6, 0, 6, 0, 0, 0, 0, 6, 0, 0, 6, 0, 0, 6, 6, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+tiles_clear:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 4, 5, 8, 5, 5, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0
-    .byte 0, 0, 0, 4, 0, 8, 0, 0, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0
-    .byte 0, 0, 0, 4, 5, 0, 4, 9, 8, 0, 6, 0, 0, 0, 0, 0, 0, 7, 0, 0
-    .byte 0, 0, 0, 4, 0, 0, 4, 0, 0, 0, 4, 0, 0, 7, 6, 0, 0, 8, 0, 0
-    .byte 0, 0, 0, 4, 0, 0, 4, 0, 0, 0, 0, 6, 7, 0, 0, 6, 7, 0, 0, 0
-    .byte 0, 0, 0, 4, 0, 0, 4, 9, 9, 0, 0, 4, 0, 0, 0, 0, 8, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -608,19 +746,131 @@ tiles_initial_game:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-tiles_score_0_0:
+tiles_score_0_p1:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0
-    .byte 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0
-    .byte 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0
-    .byte 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0
-    .byte 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+tiles_score_0_p2:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+tiles_score_1_p1:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+tiles_score_1_p2:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+tiles_score_2_p1:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+tiles_score_2_p2:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+tiles_score_3_p1:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+tiles_score_3_p2:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -643,7 +893,7 @@ tiles:
     .byte 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0
     .byte 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5
+    .byte 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8
 .org 0xF200
 tile0_data:    
     .fill 128,1,0x00 
@@ -705,95 +955,59 @@ tile3_data:
     .byte 0x11, 0x11, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00
 
 tile4_data:    
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-
+    .fill 128,1,0x33 
 tile5_data:    
-    .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
-    .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
-    .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
-    .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-
-
+    .byte 0x00, 0x00, 0x00, 0x44, 0x44, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x44, 0x44, 0x44, 0x44, 0x00, 0x00
+    .byte 0x00, 0x00, 0x44, 0x44, 0x44, 0x44, 0x00, 0x00
+    .byte 0x00, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x00
+    .byte 0x00, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x00
+    .byte 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44
+    .byte 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44
+    .byte 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44
+    .byte 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44
+    .byte 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44
+    .byte 0x00, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x00
+    .byte 0x00, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x00
+    .byte 0x00, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x00
+    .byte 0x00, 0x00, 0x44, 0x44, 0x44, 0x44, 0x00, 0x00
+    .byte 0x00, 0x00, 0x44, 0x44, 0x44, 0x44, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x44, 0x44, 0x00, 0x00, 0x00
 tile6_data:    
-    .byte 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11
-
+    .byte 0x00, 0x00, 0x00, 0x55, 0x55, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x00, 0x00
+    .byte 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x00, 0x00
+    .byte 0x00, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x00
+    .byte 0x00, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x00
+    .byte 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55
+    .byte 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55
+    .byte 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55
+    .byte 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55
+    .byte 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55
+    .byte 0x00, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x00
+    .byte 0x00, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x00
+    .byte 0x00, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x00
+    .byte 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x00, 0x00
+    .byte 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x55, 0x55, 0x00, 0x00, 0x00
 tile7_data:    
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-
+    .fill 128,1,0x66
 tile8_data:    
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33
+    .byte 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33
+    .byte 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33
+    .byte 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33  
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 tile9_data:    
     .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -806,14 +1020,14 @@ tile9_data:
     .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     .byte 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
-    .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
-    .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
-    .byte 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11  
+    .byte 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44
+    .byte 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44
+    .byte 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44
+    .byte 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44  
 tile10_data:   
-    .fill 128,1,0xAA   
+    .fill 128,1,0x33   
 tile11_data:   
-    .fill 128,1,0xBB   
+    .fill 128,1,0x44   
 tile12_data:   
     .fill 128,1,0xCC   
 tile13_data:   
@@ -825,5 +1039,5 @@ tile15_data:
 
 .org 0xFA00
 palette_data:
-    .byte 0x00,  0xDA,  0xDA,  0xB6,  0xB6,  0x92,  0x91,  0x6D
+    .byte 0x00,  0xDA,  0xDA,  0xE9,  0x67,  0x92,  0x91,  0x6D
     .byte 0x6D,  0x49,  0x49,  0x24,  0x24,  0x00,  0x00,  0xFF
