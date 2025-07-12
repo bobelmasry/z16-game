@@ -307,10 +307,14 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
             take = this.registers[rs1] !== 0;
             break;
           case 4: // BLT
-            take = this.registers[rs1] < this.registers[rs2];
+            take =
+              (this.registers[rs1] << 16) >> 16 <
+              (this.registers[rs2] << 16) >> 16;
             break;
           case 5: // BGE
-            take = this.registers[rs1] >= this.registers[rs2];
+            take =
+              (this.registers[rs1] << 16) >> 16 >=
+              (this.registers[rs2] << 16) >> 16;
             break;
           case 6: // BLTU
             take = this.registers[rs1] >>> 0 < this.registers[rs2] >>> 0;
