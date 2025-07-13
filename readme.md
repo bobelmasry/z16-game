@@ -164,7 +164,7 @@
 3. **Assemble a program**
    ```sh
    cd assembler/src
-   python main.py <source.s> -o <output.bin>
+   python main.py <source.s> 
    ```
 
 ---
@@ -176,44 +176,5 @@
 
 ---
 
-### Test Cases Overview (tests/ex-1.z16 to tests/ex-10.z16)
 
-- **ex-1.z16:**  
-  *Basic Instructions Test*  
-  Covers all instruction formats (R, I, memory, branch, jump, upper immediate, system call, etc.) with basic operands and control flow.
 
-- **ex-2.z16:**  
-  *R-Type Instructions*  
-  Tests all R-type instructions and register operations, including a function call and jump-and-link-register.
-
-- **ex-3.z16:**  
-  *I-Type Instructions*  
-  Exercises all I-type instructions (addi, slti, sltui, slli, srli, srai, ori, andi, xori, li) and their effects.
-
-- **ex-4.z16:**  
-  *Stack Operations & Recursion*  
-  Demonstrates stack management and recursion by computing a sum using a recursive function.
-
-- **ex-5.z16:**  
-  *Logical Operations*  
-  Tests logical instructions (AND, OR, XOR, ANDi, ORi, XORi) and their combinations.
-
-- **ex-6.z16:**  
-  *LUI and AUIPC*  
-  Demonstrates loading 16-bit values into registers using LUI and AUIPC, and combining with ADDI.
-
-- **ex-7.z16:**  
-  *Pseudo-Instructions*  
-  Exercises pseudo-instructions like nop, li16, mv, ret, la, call, j, jr, and verifies their expansion and effect.
-
-- **ex-8.z16:**  
-  *Fibonacci/Stack/Arithmetic*  
-  Computes the Fibonacci sequence using recursion, stack operations, and arithmetic.
-
-- **ex-9.z16:**  
-  *All ECALL Instructions*  
-  Tests all system calls (ReadString, ReadInteger, PrintString, PlayTone, SetAudioVolume, StopAudioPlayback, ReadKeyboard, RegistersDump, MemoryDump, ProgramExit) with appropriate arguments and output.
-
-- **ex-10.z16:**  
-  *ECALL Memory Dump Edge Cases*  
-  Exercises the memory dump ECALL with edge cases: dumping from the start/end of memory, zero/overflow/unaligned lengths, and writing/reading the last byte.
