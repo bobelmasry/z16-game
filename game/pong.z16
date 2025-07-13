@@ -8,6 +8,7 @@ j main
 .org 0x0020
 main:
     li16 sp, STACK_TOP # Initialize stack pointer
+    call init_reset_ball_direction
     title_screen_loop:
         li16 a0, 32 # Space key
         ecall 7 # Read character from keyboard
@@ -20,7 +21,7 @@ main:
         call read_keyboard
         call move_p1
         call move_p2
-        call move_ball
+        call init_move_ball
         call paint_ball
         call check_win
         j game_loop
@@ -105,6 +106,8 @@ move_p1:
         lw ra, 0(sp)
         addi sp, 2
         ret
+init_reset_ball_direction:
+    j reset_ball_direction
 
 move_p2:
     # Push the return address and s0
@@ -231,25 +234,6 @@ check_character:
     character_pressed:
         sw t0, 0(s0) # Store the value in the input variable
         ret
-check_win:
-    la t0, p1_score
-    lb a0, 0(t0)            # load p1_score
-    la t0, p2_score
-    lb a1, 0(t0)            # load p2_score
-    li t1, 3
-    beq a0, t1, p1_wins
-    beq a1, t1, p2_wins
-    ret
-
-    p1_wins:
-        la a0, tiles_p1_won
-        call update_screen
-        ecall 10 # Exit the program
-
-    p2_wins:
-        la a0, tiles_p2_won
-        call update_screen
-        ecall 10 # Exit the program
         
 paint_ball:
     addi sp, -2
@@ -282,6 +266,10 @@ paint_ball:
     addi sp, 2           # restore stack pointer
     ret
 
+init_move_ball:
+    j move_ball
+
+
 update_screen:
     # Update the screen with input tiles
     # Input: a0 = address of the tiles
@@ -298,6 +286,50 @@ update_screen:
         j update_screen_loop
     exit_update_screen_loop:
         ret
+
+check_win:
+    la t0, p1_score
+    lb a0, 0(t0)            # load p1_score
+    la t0, p2_score
+    lb a1, 0(t0)            # load p2_score
+    li t1, 3
+    beq a0, t1, p1_wins
+    beq a1, t1, p2_wins
+    ret
+
+    p1_wins:
+        la a0, tiles_p1_won
+        call update_screen
+        j someone_won
+    p2_wins:
+        la a0, tiles_p2_won
+        call update_screen
+        j someone_won
+    someone_won:
+        # Player Wins fanfare
+        li16 a0, 400   # Start with a low tone
+        li16 a1, 100
+        ecall 4
+
+        li16 a0, 600   # Mid tone
+        li16 a1, 100
+        ecall 4
+
+        li16 a0, 800   # Higher tone
+        li16 a1, 100
+        ecall 4
+
+        li16 a0, 1000  # Even higher
+        li16 a1, 150
+        ecall 4
+
+        li16 a0, 1200  # Final high pitch for emphasis
+        li16 a1, 250
+        ecall 4
+
+        ecall 10 # Exit the program
+
+
 
 get_offset: 
     # Get the offset for the tile map based on player's y position
@@ -325,6 +357,35 @@ get_offset:
     addi sp, 6       # restore stack pointer
 
     ret
+
+generate_ball_direction:
+    li a0, 0
+    li a1, 1
+    ecall 11 # Generate a random number between 0 and 1
+    bz a0, set_ball_direction_neg 
+    ret
+    set_ball_direction_neg:
+        li a0, -1
+        ret
+
+reset_ball_direction:
+    addi sp, -2
+    sw ra, 0(sp)        # save ra (x1)
+
+    la t0, ball_dir_y
+    call generate_ball_direction
+    sb a0, 0(t0)            # store new ball_dir_y
+    la t0, ball_dir_x
+    call generate_ball_direction
+    sb a0, 0(t0)            # store new ball_dir_x 
+
+    lw ra, 0(sp)        # restore ra
+    addi sp, 2
+    ret
+    
+
+init_check_win:
+    j check_win
 
 move_ball:
     addi sp, -2
@@ -389,6 +450,15 @@ move_ball:
                 call score_player
                 j check_collision_with_top_bottom
                 negate_x_dir_p1:
+                    li16 a0, 500
+                    li16 a1, 100
+                    ecall 4
+                    li16 a0, 400
+                    li16 a1, 100
+                    ecall 4
+                    li16 a0, 700
+                    li16 a1, 100
+                    ecall 4
                     la t0, ball_pos_x
                     lbu t1, 0(t0)           # Load ball_pos_x
                     addi t1, 2              # Add 2 to ball_pos_x, to move the ball to the right
@@ -418,6 +488,15 @@ move_ball:
                 call score_player
                 j check_collision_with_top_bottom
                 negate_x_dir_p2:
+                    li16 a0, 500
+                    li16 a1, 100
+                    ecall 4
+                    li16 a0, 400
+                    li16 a1, 100
+                    ecall 4
+                    li16 a0, 700
+                    li16 a1, 100
+                    ecall 4
                     la t0, ball_pos_x
                     lbu t1, 0(t0)           # Load ball_pos_x
                     addi t1, -2             # Subtract 2 to ball_pos_x, to move the ball to the left
@@ -442,10 +521,13 @@ move_ball:
                 neg t1
                 sb t1, 0(t0)            # store negated ball_dir_y
     
-        move_ball_done:
+    move_ball_done:
             lw ra, 0(sp)        # restore ra
             addi sp, 2
             ret
+
+init_update_screen:
+    j update_screen
 
 score_player:
     # This function is used to update the score of the player, and display the score on the screen
@@ -477,9 +559,26 @@ score_player:
         sb s0, 0(t0)            # store new p2_score
     
     draw_score_screen:
+        # Quick victory fanfare with li16
+        li16 a0, 500
+        li16 a1, 50
+        ecall 4
+
+        li16 a0, 700
+        li16 a1, 50
+        ecall 4
+
+        li16 a0, 900
+        li16 a1, 50
+        ecall 4
+
+        li16 a0, 1100
+        li16 a1, 200
+        ecall 4
+
         # Clear Screen
         la a0, tiles_clear
-        call update_screen
+        call init_update_screen
 
         la t1, p1_score
         lb t0, 0(t1)            # t0 = load p1_score
@@ -506,7 +605,7 @@ score_player:
         j score_player_sleep_loop
     score_player_sleep_loop_done:
 
-    call check_win
+    call init_check_win
 
     # reset the ball position
     la t0, ball_pos_y
@@ -526,12 +625,8 @@ score_player:
 
 
     # reset the ball direction
-    la t0, ball_dir_y
-    li t1, 1
-    sb t1, 0(t0)            # store new ball_dir_y
-    la t0, ball_dir_x
-    sb t1, 0(t0)            # store new ball_dir_x 
-    
+    call reset_ball_direction
+
     # Reset the player positions
     la t0, p1_pos
     li t1, 6
@@ -548,7 +643,7 @@ score_player:
 
     # Draw initial game screen
     la a0, tiles_initial_game
-    call update_screen
+    call init_update_screen
 
     score_player_done:
     lw ra, 0(sp)
@@ -650,8 +745,6 @@ draw_digit:
         addi sp, 2          # restore stack pointer
         ret
 
-
-
 .data
 counter:
     .word 0 # Counter for the game, used to slow down the game speed (min = 0, max = 65535)
@@ -681,6 +774,17 @@ ball_dir_y:
     .byte 1 # 1 for down, -1 for up
 ball_dir_x: 
     .byte 1 # 1 for right, -1 for left
+tone_counter:
+    .word 0 # Counter for the tone, to throttle the sound effects (min = 0, max = 65535)
+tone_index:
+    .word 0 # Index for the tone, used to play sound effects
+tones:
+    .word 400 # Frequency for the tone (min = 0, max = 65535)
+    .word 500 # Frequency for the tone (min = 0, max = 65535)
+    .word 600 # Frequency for the tone (min = 0, max = 65535)
+    .word 500 # Frequency for the tone (min = 0, max = 65535)
+    .word 400 # Frequency for the tone (min = 0, max = 65535)
+    .word 700 # Frequency for the tone (min = 0, max = 65535)
 
 tiles_p1_won:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -747,34 +851,34 @@ tiles_initial_game:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 tiles_score_0_p1:
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 0, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 5, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 5, 0, 5, 5, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 5, 5, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 0, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 tiles_score_0_p2:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 6, 6, 0, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 0, 0, 0, 6, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -814,11 +918,11 @@ tiles_score_2_p1:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 5, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -827,21 +931,21 @@ tiles_score_2_p1:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 tiles_score_2_p2:
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 0, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 0, 0, 0, 6, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 6, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 tiles_score_3_p1:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
