@@ -167,14 +167,6 @@
    python main.py <source.s> 
    ```
 
----
-
-## 📚 Documentation
-
-- See `assembler/docs/` for architecture, instruction set, and contributing guidelines
-- Example programs in `assembler/examples/`, `game/`, and `tests/`
-
----
 
 
 
