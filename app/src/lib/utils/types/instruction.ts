@@ -20,6 +20,7 @@ export enum ECALLService {
   "RegistersDump" = 8,
   "MemoryDump" = 9,
   "ProgramExit" = 10,
+  "GetRandom" = 11,
 }
 
 export interface BaseInstruction {

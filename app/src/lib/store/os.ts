@@ -4,10 +4,12 @@ import { Command, SimulatorState } from "../utils/types";
 import { sendCommand } from "../utils/command";
 import { BUFS } from "@/hooks/use-simulator";
 import { playTone } from "../audio";
+import { ECALLService } from "../utils/types/instruction";
 
 type ECallRequest =
   | { type: "readString"; maxLen: number; addr: number }
-  | { type: "readInt" };
+  | { type: "readInt" }
+  | { type: "random"; min: number; max: number };
 
 export interface OperatingSystemStore {
   consoleLog: string[];
@@ -77,6 +79,21 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
         case "readInt":
           registers[6] = parseInt(value, 10); // set a0 to the integer value
           break;
+        case "random": {
+          // Generate random number between a0 and a1 inclusive, and put it a0
+          const min = (registers[6] << 16) >> 16; // a0 as signed 16-bit
+          const max = (registers[7] << 16) >> 16; // a1 as signed 16-bit
+          if (min > max) {
+            get().consolePrint([
+              `Invalid random range: ${min} to ${max}. a0 should be less than or equal to a1.`,
+            ]);
+            return;
+          }
+          const randomValue = Math.floor(
+            Math.random() * (max - min + 1) + min
+          );
+          registers[6] = randomValue; // Set the random value in a0
+        }
       }
 
       // Resume the worker
@@ -89,6 +106,7 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
 
     handleECall(service, registers, memory) {
       switch (service) {
+        // TODO: Use the enums
         case 1: {
           // Read String
           const addr = registers[6]; // a0
@@ -222,6 +240,13 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           // Exit the program
           get().consolePrint(["Exiting program with code " + registers[6]]);
           return;
+        }
+        case 11: {
+          set(() => ({
+            pendingECall: { type: "random", min: registers[6], max: registers[7] },
+          }));
+
+          get().resolveECall("");
         }
         default:
           break;

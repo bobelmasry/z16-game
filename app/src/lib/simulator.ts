@@ -405,6 +405,7 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
         switch (instruction.service) {
           case ECALLService.ReadString:
           case ECALLService.ReadInteger:
+          case ECALLService.GetRandom:
             // These services block execution until input is provided
             this.prevState = this.state; // Save previous state before blocking
             this.state = SimulatorState.Blocked;
