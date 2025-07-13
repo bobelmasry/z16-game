@@ -11,7 +11,7 @@ main:
     title_screen_loop:
         li16 a0, 32 # Space key
         ecall 7 # Read character from keyboard
-        bnz a0, draw_initial_game # If space is pressed, draw the initial game screen
+        bnz a1, draw_initial_game # If space is pressed, draw the initial game screen
         j title_screen_loop
     draw_initial_game:
         la a0, tiles_initial_game
@@ -226,7 +226,7 @@ check_character:
     # Input: a0 = character to check, a1 = input variable address, t0 = value to store if character is pressed
     mv s0, a1
     ecall 7 # Read character from keyboard
-    bnz a0, character_pressed
+    bnz a1, character_pressed
     ret
     character_pressed:
         sw t0, 0(s0) # Store the value in the input variable

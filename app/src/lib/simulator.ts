@@ -412,10 +412,11 @@ export class Simulator extends EventEmitter<SimulatorEvents> {
           case ECALLService.ReadKeyboard: {
             const keyCode = this.registers[6]; // a0
             const key = String.fromCharCode(keyCode);
+            // Put the result in a1 for some reason
             if (this.pressedKeys.has(key)) {
-              this.registers[6] = 1; // Echo back the key code
+              this.registers[7] = 1; // Echo back the key code
             } else {
-              this.registers[6] = 0; // No key pressed
+              this.registers[7] = 0; // No key pressed
             }
             break;
           }
