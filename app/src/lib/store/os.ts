@@ -3,6 +3,7 @@ import { useSimulatorStore } from "./simulator";
 import { Command, SimulatorState } from "../utils/types";
 import { sendCommand } from "../utils/command";
 import { BUFS } from "@/hooks/use-simulator";
+import { playTone } from "../audio";
 
 type ECallRequest =
   | { type: "readString"; maxLen: number; addr: number }
@@ -144,27 +145,7 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
             return;
           }
 
-          const audioCtx = new (window.AudioContext ||
-            (window as any).webkitAudioContext)();
-          const oscillator = audioCtx.createOscillator();
-          const gainNode = audioCtx.createGain();
-
-          // Normalize audioVolume (0–255) to gain (0.0–1.0)
-          // TODO: Have audioVolume in the simulation store
-          const normalizedVolume = Math.max(0, Math.min(255, 255)) / 255;
-          gainNode.gain.setValueAtTime(normalizedVolume, audioCtx.currentTime);
-
-          oscillator.type = "sine";
-          oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-          oscillator.connect(gainNode);
-          gainNode.connect(audioCtx.destination);
-
-          oscillator.start();
-
-
-          setTimeout(() => {
-            oscillator.stop();
-          }, duration);
+          playTone(frequency, duration);
 
           break;
         }
