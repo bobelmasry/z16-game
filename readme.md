@@ -71,8 +71,8 @@
   Exercises all I-type instructions (addi, slti, sltui, slli, srli, srai, ori, andi, xori, li) and their effects.
 
 - **ex-4.z16:**  
-  *Stack Operations & Recursion*  
-  Demonstrates stack management and recursion by computing a sum using a recursive function.
+  *Branch and Jumping Operations*  
+  Tested Some stack and jump operations.
 
 - **ex-5.z16:**  
   *Logical Operations*  
