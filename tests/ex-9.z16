@@ -1,0 +1,77 @@
+# Test Case: All ECALL Instructions (per spec)
+# Tests: ReadString, ReadInteger, PrintString, PlayTone, SetAudioVolume, 
+#        StopAudioPlayback, ReadKeyboard, RegistersDump, MemoryDump, ProgramExit
+
+.text
+.org 0x000
+    j main
+
+.org 0x0020
+main:
+    # Print String: Print a message
+    la a0, message
+    ecall 3         # Print String (should print "Hello, z16!")
+
+    # Set Audio Volume: Set volume to 128 (50%)
+    li16 a0, 128
+    ecall 5         # Set Audio Volume
+
+    # Play Tone: 440Hz for 1000ms
+    li16 a0, 440      # Frequency
+    li16 a1, 1000     # Duration (ms)
+    ecall 4         # Play Tone
+
+    # Read Keyboard: Check for key press
+    ecall 7         # Read Keyboard
+    mv a0, a0       # a0 = key code (if any)
+    mv a1, a1       # a1 = 1 if pressed, 0 if not
+    # Print key code and status
+    ecall 8         # Registers Dump (shows a0, a1)
+
+
+
+    
+    # Registers Dump: Dump all registers
+    li16 x0, 1
+    li16 x1, 2
+    li16 x2, 3
+    li16 x3, 4 
+    li16 x4, 5
+    li16 x5, 6
+    li16 x6, 7 
+    li16 x7, 8
+    
+    ecall 8         # Registers Dump
+
+    # Memory Dump: Dump 8 bytes from message
+    la a0, message
+    li16 a1, 8
+    ecall 9         # Memory Dump
+
+    # Read Integer: Read an integer from input
+    ecall 2         # Read Integer
+    # Print the read integer
+    ecall 8         # Registers Dump (shows a0)
+
+    # Read String: Read a string into buffer
+    la a0, strbuf
+    li16 a1, 16       # Max length
+    ecall 1         # Read String
+    # Print the string length (in a0)
+    ecall 8         # Registers Dump (shows a0)
+    # Print the string
+    la a0, strbuf
+    ecall 3         # Print String
+
+    # Stop Audio Playback
+    ecall 6         # Stop Audio Playback
+
+    # Program Exit
+    ecall 10        # Program Exit
+
+.data
+message:
+    .ascii "Hello, z16!"
+    .byte 0
+strbuf:
+    .space 32

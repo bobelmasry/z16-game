@@ -1,0 +1,53 @@
+# Test Case: ECALL Memory Dump Edge Cases
+
+.text
+.org 0x000
+    j main
+
+.org 0x0020
+main:
+    # 1. Dump from the very start of memory
+    li16 a0, 0x0000
+    li16 a1, 16
+    ecall 9         # Should print first 16 bytes
+
+    # 2. Dump from the very end of memory (last 8 bytes)
+    li16 a0, 0xFFF8
+    li16 a1, 8
+    ecall 9         # Should print last 8 bytes
+
+    # 3. Dump with a length that goes past the end of memory
+    li16 a0, 0xFFFC
+    li16 a1, 16
+    ecall 9         # Should handle gracefully (not crash)
+
+    # 4. Dump with zero length
+    li16 a0, 0x1000
+    li16 a1, 0
+    ecall 9         # Should do nothing or print nothing
+
+    # 5. Dump with a very large length (overflow)
+    li16 a0, 0x1000
+    li16 a1, 2
+    ecall 9         # Should handle gracefully
+
+    # 6. Dump from an unali16gned address
+    li16 a0, 0x1003
+    li16 a1, 8
+    ecall 9         # Should print 8 bytes from 0x1003
+
+    # 7. Write to the last address and dump it
+    li16 x1, 0xAB
+    la x2, lastbyte
+    sb x1, 0(x2)    # Store 0xAB at lastbyte (0xFFFF)
+    li16 a0, 0xFFFF
+    li16 a1, 1
+    ecall 9         # Should print 0xAB
+
+    # Exit
+    ecall 10
+
+.data
+lastbyte:
+    .org 0xFFFF
+    .byte 0

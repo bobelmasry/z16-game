@@ -1,0 +1,41 @@
+# Test Case: I-Type Instructions Test
+# Tests: addi, slti, sltui, slli, srli, srai, ori, andi, xori, li
+
+.text
+.org 0x000
+    j main
+
+.org 0x0020
+main:
+    # ADDI: x1 = 10 + 5 = 15
+    li x1, 10
+    addi x1, 5 # Print x1 (should be 15)
+
+    # SLTI: x2 = (x1 < 20) ? 1 : 0
+    slti x2, 20  # Print x2 (should be 1)
+
+    # SLTUI: x3 = (x1 < 0xFFFF) unsigned ? 1 : 0
+    sltui x3, 0xFFFF # Print x3 (should be 1)
+
+    # SLLI: x4 = x1 << 2
+    slli x4, 2 # Print x4 (should be 60)
+
+    # SRLI: x5 = x4 >> 2 (logical)
+    srli x5, 2 # Print x5 (should be 15)
+
+    # SRAI: x6 = x4 >> 2 (arithmetic)
+    srai x6, 2 # Print x6 (should be 15)
+
+    # ORI: x7 = x1 | 0x0F
+    ori x7, 0x0F  # Print x7 (should be 15)
+
+    # ANDI: x8 = x1 & 0x0F
+    andi x0, 0x0F  # Print x8 (should be 15)
+
+    # XORI: x9 = x1 ^ 0x0F
+    xori x1, 0x0F  # Print x9 (should be 0)
+
+    # LI: x10 = 1234
+    li x2, 20
+    # Exit program
+    ecall 10

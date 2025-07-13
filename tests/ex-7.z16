@@ -1,0 +1,62 @@
+# Test Case: Pseudo-Instructions
+# Tests: nop, li16, mv, ret, la, call, j, jr
+
+.text
+.org 0x000
+    j main
+
+.org 0x0020
+main:
+    # NOP: Should do nothing
+    nop
+
+    # li16: Load immediate value
+    li16 x1, 1234
+    mv a0, x1
+
+    # MV: Move value between registers
+    mv x2, x1
+    mv a0, x2
+
+    # LA: Load address of label into x3
+    la x3, data_label
+    mv a0, x3
+
+    # CALL: Call subroutine (should jump to subroutine and return)
+    call subroutine
+    mv a0, x4
+
+    # J: Unconditional jump
+    j after_jump
+    li16 x5, 9999    # Should be skipped
+
+after_jump:
+    li16 x5, 5555
+    mv a0, x5
+
+    # JR: Jump to address in register
+    la x6, jr_target
+    jr x6
+
+jr_target:
+    li16 x7, 7777
+    mv a0, x7
+
+    # RET: Return from subroutine (simulate by calling ret)
+    call ret_test
+    mv a0, x7
+
+    # Exit program
+    ecall 0x00A
+
+subroutine:
+    li16 x4, 4321
+    ret
+
+ret_test:
+    li16 x7, 8888
+    ret
+
+.data
+data_label:
+    .word 0xDEAD

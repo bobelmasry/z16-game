@@ -1,0 +1,28 @@
+ # Test Case: LUI and AUIPC Instructions
+# Demonstrates loading 16-bit values into registers using LUI and AUIPC
+
+.text
+.org 0x000
+    j main
+
+.org 0x0020
+main:
+    # LUI: Load upper 9 bits (imm << 7) into x1
+    lui x1, 0x1AB    # x1 = 0x1AB << 7 = 0xD580
+    mv a0, x1
+
+    # Set lower 7 bits using ADDI
+    addi x1, 0x10    # x1 = 0xD580 + 0x10 = 0xD510
+    mv a0, x1
+
+    # AUIPC: x2 = PC + (imm << 7)
+    auipc x2, 0x123  # x2 = PC + 0x123 << 7
+    mv a0, x2
+
+    # Combine LUI and ADDI to load 0xBEEF into x3
+    lui x3, 0x17D    # x3 = 0x17D << 7 = 0xBE80
+    addi x3, 0x10   # x3 = 0xBE80 + 0x10 = 0xBE10
+    mv a0, x3
+
+    # Exit program
+    ecall 10

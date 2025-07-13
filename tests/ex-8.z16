@@ -2,8 +2,6 @@
 # File: ex-6.s
 # Tests: Fibonacci Series
 
-.equ STACK_TOP, 0xEFFE
-
 .text
 .org 0x000
     j  main

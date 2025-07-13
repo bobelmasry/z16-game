@@ -196,6 +196,18 @@ export const useOperatingSystemStore = create<OperatingSystemStore>()(
           const skipFirstByte = (registers[6] / 2) % 1 !== 0;
           length += skipFirstByte ? 1 : 0; // Adjust length if skipping first byte
 
+          // Calculate byte addresses
+          const byteStart = registers[6];
+          const byteEnd = byteStart + registers[7] - 1;
+
+          // Check for out-of-bounds access
+          if (byteStart < 0x0000 || byteEnd > 0xFFFF) {
+            get().consolePrint([
+              `Memory Error: Address range 0x${byteStart.toString(16).padStart(4, "0")}-0x${byteEnd.toString(16).padStart(4, "0")} is out of memory bounds (0x0000-0xFFFF).`
+            ]);
+            break;
+          }
+
           const printByte = (byte: number | null) =>
             byte === null ? "----" : `0x${byte.toString(16).padStart(2, "0")}`;
 
