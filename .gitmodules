@@ -1,0 +1,3 @@
+[submodule "app/assembler"]
+	path = app/assembler
+	url = https://github.com/AbdallahMostafaIbrahim/z16-assembler
