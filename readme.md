@@ -57,8 +57,8 @@
 ---
 
 - **Test Suite** (`tests/`):
-x: this means it highly tests them
-.: this mean it barely tests them but have at least an instruction from them
+- x: this means it highly tests them
+- .: this mean it barely tests them but have at least an instruction from them
 
 | Test Case   | R_type | I_type | Save/Load | Branch/Jump | ECALLs | Decoding | Stack | Psudo instructions | Memory Edge Cases |
 |-------------|:------:|:------:|:---------:|:-----------:|:------:|:--------:|:-----:|:----------------:|:----------------:|
@@ -123,6 +123,11 @@ x: this means it highly tests them
      cd assembler/src
      # (install requirements if any)
      ```
+
+**Games**
+- Pong Game: a complete z16 coded pong game
+- Tetris: incomplete version of tetris
+
 
 2. **Run the web simulator**
    ```sh
