@@ -32,7 +32,7 @@
 
 - **Custom 16-bit z16 ISA**: 8 registers, 64KB memory, 7 instruction formats
 - **Assembler**: Converts `.s`/`.z16` source to `.bin` binaries
-- **Simulator**: Step-by-step execution, register/memory visualization, console output
+- **Simulator**: Step-by-step execution, register visualization, console output
 - **Web UI**: Syntax highlighting, file upload, live decoding, system call simulation
 - **2D Tiled Graphics System**: QVGA (320x240), 16x16 pixel tiles, 16-color palette, memory-mapped display
 - **Game Demos**: Play and analyze example Z16 games (see `game/`)
@@ -56,53 +56,22 @@
 
 ---
 
-## 🧪 Test Suite & Game Demos
-
 - **Test Suite** (`tests/`):
-    ### Test Cases Overview (tests/ex-1.z16 to tests/ex-10.z16)
+x: this means it highly tests them
+.: this mean it barely tests them but have at least an instruction from them
 
-- **ex-1.z16:**  
-  *Basic Instructions Test*  
-  Covers all instruction formats (R, I, memory, branch, jump, upper immediate, system call, etc.) with basic operands and control flow.
-
-- **ex-2.z16:**  
-  *R-Type Instructions*  
-  Tests all R-type instructions and register operations, including a function call and jump-and-link-register.
-
-- **ex-3.z16:**  
-  *I-Type Instructions*  
-  Exercises all I-type instructions (addi, slti, sltui, slli, srli, srai, ori, andi, xori, li) and their effects.
-
-- **ex-4.z16:**  
-  *Branch and Jumping Operations*  
-  Tested Some stack and jump operations.
-
-- **ex-5.z16:**  
-  *Logical Operations*  
-  Tests logical instructions (AND, OR, XOR, ANDi, ORi, XORi) and their combinations.
-
-- **ex-6.z16:**  
-  *LUI and AUIPC*  
-  Demonstrates loading 16-bit values into registers using LUI and AUIPC, and combining with ADDI.
-
-- **ex-7.z16:**  
-  *Pseudo-Instructions*  
-  Exercises pseudo-instructions like nop, li16, mv, ret, la, call, j, jr, and verifies their expansion and effect.
-
-- **ex-8.z16:**  
-  *Fibonacci/Stack/Arithmetic*  
-  Computes the Fibonacci sequence using recursion, stack operations, and arithmetic.
-
-- **ex-9.z16:**  
-  *All ECALL Instructions*  
-  Tests all system calls (ReadString, ReadInteger, PrintString, PlayTone, SetAudioVolume, StopAudioPlayback, ReadKeyboard, RegistersDump, MemoryDump, ProgramExit) with appropriate arguments and output.
-
-- **ex-10.z16:**  
-  *ECALL Memory Dump Edge Cases*  
-  Exercises the memory dump ECALL with edge cases: dumping from the start/end of memory, zero/overflow/unaligned lengths, and writing/reading the last byte.
-
-- **Game Demos** (`game/`):
-  - Example Z16 games (e.g., `pong.z16`, `pong.bin`) for simulation and analysis
+| Test Case   | R_type | I_type | Save/Load | Branch/Jump | ECALLs | Decoding | Stack | Psudo instructions | Memory Edge Cases |
+|-------------|:------:|:------:|:---------:|:-----------:|:------:|:--------:|:-----:|:----------------:|:----------------:|
+| ex-1.z16    |   x    |   x    |     x     |      x      |   .    |    x     |       |        .         |                  |
+| ex-2.z16    |   x    |        |           |      x      |   .    |    x     |       |        .         |                  |
+| ex-3.z16    |        |   x    |     x     |             |   .    |    x     |       |        .         |                  |
+| ex-4.z16    |        |        |           |      x      |   .    |    x     |       |                  |                  |
+| ex-5.z16    |   .    |   x    |           |             |   .    |    x     |       |                  |                  |
+| ex-6.z16    |        |   x    |     x     |      x      |        |    x     |       |        .         |                  |
+| ex-7.z16    |   .    |   x    |           |      x      |        |    x     |       |        x         |                  |
+| ex-8.z16    |   x    |   x    |     x     |      x      |        |    x     |   x   |        x         |                  |
+| ex-9.z16    |        |   X    |           |             |   x    |    x     |       |                  |                  |
+| ex-10.z16   |        |        |     x     |             |   x    |    x     |       |                  |        x         |
 
 ---
 
@@ -120,7 +89,7 @@
 
 - **Instruction Formats**: R, I, B, S, L, J, U, ECall (see `types/instruction.ts`)
 - **Opcodes**: 0–7 (Rtype, Itype, Btype, Stype, Ltype, Jtype, Utype, ECall)
-- **System Calls**: Read/Print String, Read Integer, Play Tone, Set Volume, Stop Audio, Read Keyboard, Registers/Memory Dump, Program Exit, Get Random
+- **ECalls**: Read/Print String, Read Integer, Play Tone, Set Volume, Stop Audio, Read Keyboard, Registers/Memory Dump, Program Exit, Get Random (Bonus)
 
 ---
 
