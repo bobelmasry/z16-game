@@ -124,9 +124,7 @@
      # (install requirements if any)
      ```
 
-**Games**
-- Pong Game: a complete z16 coded pong game
-- Tetris: incomplete version of tetris
+
 
 
 2. **Run the web simulator**
@@ -144,6 +142,8 @@
    python main.py <source.s> 
    ```
 
-
+**Games**
+- Pong Game: a complete z16 coded pong game
+- Tetris: incomplete version of tetris
 
 
