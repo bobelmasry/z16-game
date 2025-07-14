@@ -1,0 +1,233 @@
+.equ TILE_MAP_BUFFER_ADDR, 0xF000
+.equ TILE_DEFINITIONS_ADDR, 0xF200
+.equ COLOR_PALLETE_ADDR, 0xFA00
+
+.text
+.org 0x0000
+    j main
+
+.org 0x0020
+main:
+    title_screen_loop:
+        li16 a0, 32        # Space key code
+        ecall 7            # Read character from keyboard into a1
+        bnz a1, start_game
+        j title_screen_loop
+    start_game:
+        call update_screen
+        j game_loop
+    game_loop:
+        li a0, 2
+        call add_tile_to_screen
+        call shift_down
+
+        j game_loop
+
+update_screen:
+    la a0, tiles  # Load address of current tiles
+    li16 s0, 300 # Number of tiles in the tile map (15 rows * 20 columns)
+    li t0, 0
+    la t1, tiles             # destination pointer
+    update_screen_loop:
+        beq t0, s0, exit_update_screen_loop # if t0 == 300, exit loop
+        li a1, 0
+        sb a1, 0(t1)
+        addi a0, 1
+        addi t1, 1
+        addi t0, 1
+        j update_screen_loop
+    exit_update_screen_loop:
+    ret
+
+
+add_tile_to_screen:
+    la a0, current_tile_counter
+    la a1, freq_of_adding_to_screen
+    lbu t0, 0(a0)  # Load the current tile counter
+    lbu s0, 0(a1)  # Load the frequency of adding to
+    beq t0, s0, continue_add_tile_to_screen
+    addi t0, 1
+    sb t0, 0(a0)  # Increment the current tile counter
+    j exit_add_tile_loop
+    continue_add_tile_to_screen: 
+    li t0, 0
+    sb t0, 0(a0)  # Reset the current tile counter
+    la a0, tiles  # Load address of current tiles
+    la a1, tile0_data
+    li16 s0, 300 # Number of tiles in the tile map (15 rows * 20 columns)
+    li t0, 0
+    add_tile_loop:
+        lbu t1, 0(a1)  # Load the tile data
+        lbu s1, 0(a0)  # Load the current tile
+        beq t0, s0, exit_add_tile_loop # if t0 == 300, exit loop
+        or t1, s1      # Combine the tiles (t1 = t1 | s1)
+        sb t1, 0(a0)   # Store the combined tile
+        addi a0, 1
+        addi a1, 1
+        addi t0, 1
+        j add_tile_loop
+    exit_add_tile_loop:
+        ecall 2
+        ret
+
+        
+shift_down:
+    top_row_to_zero:
+    la a0, tiles
+    li t0, 0
+    li16 s0, 20         # number of columns
+    li a1, 0            # value to write
+
+    top_row_to_zero_loop:
+    beq t0, s0, end_top_row_to_zero_loop
+    sb a1, 0(a0)
+    addi a0, 1
+    addi t0, 1
+    j top_row_to_zero_loop
+
+    end_top_row_to_zero_loop:
+    la a0, tiles  # Load address of current tiles
+    la a1, temp_tile      # Load address of temp tile
+    li t0, 0
+    copy_tile_loop:
+        lbu t1, 0(a0)  # Load the current tile
+        sb t1, 0(a1)   # Store it in the temp tile
+        addi a0, 1
+        addi a1, 1
+        addi t0, 1
+        li16 s0, 300
+        bne t0, s0, copy_tile_loop
+
+    
+    la a0, temp_tile
+    addi a0, 20 # Move to the next row
+    la a1, tiles  # Load address of current tiles
+
+    # moving only the top part
+    li t0, 0
+    la a1, current_tile_last_row
+    lbu s0, 0(a1)  # Load the last row index
+    shift_down_loop:
+        beq t0, s0, end_shift_down_loop
+        lbu t1, 0(a0)  # Load the tile from temp_tile
+        sb t1, 0(a1)   # Store it in the current tile position
+        addi a0, 1
+        addi a1, 1
+        addi t0, 1
+        j shift_down_loop
+    end_shift_down_loop:
+        ret
+
+end_show_score:
+    j end_show_score  # Infinite loop for now
+
+.data
+.org 0xF000
+tiles:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 3, 3, 3, 0, 2, 2, 2, 4, 4, 4, 6, 6, 6, 0, 0, 5, 0, 3, 3, 3
+    .byte 0, 3, 0, 0, 2, 0, 0, 0, 4, 0, 6, 0, 6, 0, 0, 5, 0, 3, 0, 0
+    .byte 0, 3, 0, 0, 2, 2, 2, 0, 4, 0, 6, 6, 0, 0, 0, 5, 0, 3, 3, 3
+    .byte 0, 3, 0, 0, 2, 0, 0, 0, 4, 0, 6, 0, 6, 0, 0, 5, 0, 0, 0, 3
+    .byte 0, 3, 0, 0, 2, 2, 2, 0, 4, 0, 6, 0, 6, 0, 0, 5, 0, 3, 3, 3
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+.org 0xF200
+        
+block0_data:
+    # Top row (light gray)
+    .fill 8, 1, 0xCC
+
+    # Middle rows (light gray border, black fill)
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+    .byte 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
+
+    # Bottom row (light gray)
+    .fill 8, 1, 0xCC
+
+block1_data:
+    .fill 128,1,0x11
+block2_data:
+    .fill 128,1,0x22
+block3_data:
+    .fill 128,1,0x33
+block4_data:
+    .fill 128,1,0x44
+block5_data:
+    .fill 128,1,0x55
+block6_data:
+    .fill 128,1,0x66
+block7_data:
+    .fill 128,1,0x77
+block8_data:
+    .fill 128,1,0x88
+block9_data:
+    .fill 128,1,0x99
+
+tile0_data:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+
+temp_tile:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+
+current_tile_last_row:
+.byte 100
+
+freq_of_adding_to_screen:
+    .byte 240
+
+current_tile_counter:
+    .byte 240
+
+
+.org 0xFA00
+palette_data:
+    .byte 0x00,  0xDA,  0xDA,  0xE9,  0x67,  0x92,  0x91,  0x6D
+    .byte 0x6D,  0x49,  0x49,  0x24,  0x24,  0x00,  0x00,  0xFF
