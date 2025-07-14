@@ -1,39 +1,86 @@
-# Test Case 4: Stack operations using Add down
-# File: ex-4.s
-# Tests: Managing stack through recursion
+# Test Case: Branch Instructions
+# Tests: beq, bne, blt, bge, bltu, bgeu, bz, bnz (taken and not-taken cases)
 
 .text
 .org 0x000
-    j  main
+    j main
+
 .org 0x0020
 main:
-    li x0, 0
-    li x6, 5            # input number for factorial
-    jal x1, add_down        # result in x6
-    
+    li x1, 5
+    li x2, 5
+    li x3, 3
+    li x4, 7
+    li x5, 0
+    li x0, 1
+
+    # BEQ taken
+    beq x1, x2, beq_taken
+    la a0, error_msg
+    ecall 3 
+    ecall 10
+beq_taken:
+    li16 x7, 1001      # Should be executed
+    mv a0, x7
+    ecall 0x003      # Print x7 (should be 1001)
+
+    # BNE not taken
+    bne x1, x2, bne_taken
+    li16 x7, 2002      # Should be executed
+bne_taken:
+    li16 x7, 2222      # Should be skipped
+
+
+    # BLT taken
+    blt x3, x4, blt_taken
+    li16 x7, 3333      # Should be skipped
+blt_taken:
+    li16 x7, 3003      # Should be executed
+
+
+    # BGE not taken
+    bge x3, x4, bge_taken
+    li16 x7, 4004      # Should be executed
+bge_taken:
+    li16 x7, 4444      # Should be skipped
+    mv a0, x7
+    ecall 0x003      # Print x7 (should be 4004)
+
+    # BLTU taken (unsigned)
+    li16 x1, 0x0001
+    li16 x2, 0xFFFF
+    bltu x1, x2, bltu_taken
+    li16 x7, 5555      # Should be skipped
+bltu_taken:
+    li16 x7, 5005      # Should be executed
+
+
+    # BGEU not taken (unsigned)
+    bgeu x1, x2, bgeu_taken
+
+bgeu_taken:
+
+    # BZ taken (x5 == 0)
+    bz x5, bz_taken
+bz_taken:
+
+    # BNZ not taken (x5 == 0)
+    bnz x5, bnz_taken
+bnz_taken:
+
+
+    # BNZ taken (x0 != 0)
+    bnz x0, bnz2_taken
+bnz2_taken:
+
+
+    # BZ not taken (x0 != 0)
+    bz x0, bz2_taken
+bz2_taken:
+
+
     # Exit
-    ecall 0x00A
+    ecall 10
 
-add_down:
-    beq x6, x0, base_case
-
-    # Save x1 and x6 on stack
-    addi x2, -8
-    sw x1, 4(x2)
-    sw x6, 0(x2)
-
-    addi x6, -1         # x6 = n - 1
-    jal x1, add_down        # recursive call
-
-    # Restore original x6 (n)
-    lw x5, 0(x2)
-    lw x1, 4(x2)
-    addi x2, 8
-
-    add x6, x5          # x6 = result_from_recursive + n
-    jr x1
-
-base_case:
-    li x6, 0
-    jr x1
-
+.data
+error_msg: .byte 'e','r','r'

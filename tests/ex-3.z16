@@ -7,8 +7,17 @@
 
 .org 0x0020
 main:
-    # ADDI: x1 = 10 + 5 = 15
+    # setting values to test
+    li x0, 0
+    li x1, 1
+    li x2, 2
+    li x3, 3
+    li x4, 4
+    li x5, 5
+    li x6, 6
+    li x7, 7    
     li x1, 10
+    
     addi x1, 5 # Print x1 (should be 15)
 
     # SLTI: x2 = (x1 < 20) ? 1 : 0

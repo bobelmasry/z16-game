@@ -8,7 +8,7 @@
 .org 0x0020
 main:
     li16 sp, STACK_TOP  # Initialize stack pointer
-    li a0, 8
+    li a0, 6
     call Fib
     # Final exit
     ecall 0x00A         # Exit system call

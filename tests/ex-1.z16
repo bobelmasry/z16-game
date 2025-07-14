@@ -26,12 +26,12 @@ main:
     slti x3, 63         # Set less than immediate (7-bit max)
     sltui x4, 50        # Set less than unsigned immediate
     ori x5, 0x0F        # OR immediate
-    andi x6, 0x3F       # AND immediate (7-bit max)
-    xori x7, 0x7F       # XOR immediate (7-bit max)
+    andi x6, 0x0F       # AND immediate (7-bit max)
+    xori x7, 0x0F       # XOR immediate (7-bit max)
     
     # Shift immediates
     slli x1, 4          # Shift left logical immediate
-    srli x2, 8          # Shift right logical immediate
+    srli x2, 7          # Shift right logical immediate
     srai x3, 2          # Shift right arithmetic immediate
     
     # Load immediate (7-bit range)
