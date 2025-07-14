@@ -1,4 +1,4 @@
-const audioCtx = window ? new (window.AudioContext || (window as any).webkitAudioContext)() : null;
+const audioCtx = window ? (new (window.AudioContext || (window as any).webkitAudioContext)()) : null;
 let audioQueue: Promise<void> = Promise.resolve();
 
 export function playTone(frequency: number, duration: number) {
