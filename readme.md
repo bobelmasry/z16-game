@@ -4,7 +4,7 @@
 
 **Deployed at**: [https://z16-game.vercel.app/](https://z16-game.vercel.app/)
 
-**Z16 Game** is an educational platform for simulating and programming a custom z16 architecture. It features:
+**Z16 Game** is a platform for simulating the custom z16 architecture. It features:
 - **Assembler**: Python-based assembler for the Z16 ISA
 - **Web Simulator**: Interactive Next.js/React app for running and visualizing assembly code
 - **Game Demos**: Example Z16 games (e.g., Pong) for demonstration and testing
@@ -16,7 +16,9 @@
 
 - `app/` — Web simulator (Next.js/React)
   - `src/components/simulator/` — UI for code, display, registers, controls, console, file upload
-  - `src/lib/utils/` — Core logic for instruction decoding, execution, and architecture
+  - `src/lib/utils/` — Utilities for decoding the machine code
+  - `src/lib/worker.ts` — worker code for multi-threading (so the simulation runs on another thread other than the UI thread)
+  - `src/lib/simulator.ts` — actual simulator implementation
 - `assembler/` — Python assembler
   - `src/` — Assembler implementation (`main.py`, `first_pass.py`, `second_pass.py`, etc.)
   - `docs/` — Architecture, instruction set, and contributing documentation
