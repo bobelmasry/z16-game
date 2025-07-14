@@ -31,7 +31,7 @@
 ## ⚙️ Features
 
 - **Custom 16-bit z16 ISA**: 8 registers, 64KB memory, 7 instruction formats
-- **Assembler**: Converts `.s` source to `.bin` binaries
+- **Assembler**: Converts `.s`/`.z16` source to `.bin` binaries
 - **Simulator**: Step-by-step execution, register/memory visualization, console output
 - **Web UI**: Syntax highlighting, file upload, live decoding, system call simulation
 - **2D Tiled Graphics System**: QVGA (320x240), 16x16 pixel tiles, 16-color palette, memory-mapped display
