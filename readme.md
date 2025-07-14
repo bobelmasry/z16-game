@@ -2,8 +2,9 @@
 
 ## 🕹️ Overview
 
-**Z16 Game** is an educational platform for simulating and programming a custom z16 architecture. It features:
+**Deployed at**: [https://z16-game.vercel.app/](https://z16-game.vercel.app/)
 
+**Z16 Game** is an educational platform for simulating and programming a custom z16 architecture. It features:
 - **Assembler**: Python-based assembler for the Z16 ISA
 - **Web Simulator**: Interactive Next.js/React app for running and visualizing assembly code
 - **Game Demos**: Example Z16 games (e.g., Pong) for demonstration and testing
